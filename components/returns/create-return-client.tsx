@@ -8,7 +8,6 @@ import { toast } from "sonner"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Button } from "@/components/ui/button"
 import { Input, Select } from "@/components/ui/input"
-import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table"
 
 export function CreateReturnClient({ currentUserId }: { currentUserId: number }) {
   const router = useRouter()

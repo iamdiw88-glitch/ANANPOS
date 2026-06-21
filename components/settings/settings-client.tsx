@@ -2,6 +2,12 @@
 
 import { useState } from "react"
 import { Save, Store, Users, Scale, Database, Plus, Trash2, Edit2, CheckCircle } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input, Select } from "@/components/ui/input"
+import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
 
 export function SettingsClient({ initialUsers, initialUnits, initialSettings }: any) {
   const [activeTab, setActiveTab] = useState("info")
@@ -36,39 +42,37 @@ export function SettingsClient({ initialUsers, initialUnits, initialSettings }: 
     window.location.href = "/api/settings/backup"
   }
 
+  const tabs = [
+    { key: "info", label: "ข้อมูลร้าน", icon: Store },
+    { key: "users", label: "ผู้ใช้งาน (Users)", icon: Users },
+    { key: "units", label: "หน่วยนับ (Units)", icon: Scale },
+    { key: "backup", label: "สำรองข้อมูล (Backup)", icon: Database },
+  ]
+
   return (
-    <div className="flex h-[calc(100vh-140px)] gap-6">
+    <div className="flex h-[calc(100vh-140px)] gap-4">
       {/* Sidebar Tabs */}
-      <div className="w-64 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col p-4 gap-2">
-        <button 
-          onClick={() => setActiveTab("info")}
-          className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === "info" ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50"}`}
-        >
-          <Store className="w-5 h-5" /> ข้อมูลร้าน
-        </button>
-        <button 
-          onClick={() => setActiveTab("users")}
-          className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === "users" ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50"}`}
-        >
-          <Users className="w-5 h-5" /> ผู้ใช้งาน (Users)
-        </button>
-        <button 
-          onClick={() => setActiveTab("units")}
-          className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === "units" ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50"}`}
-        >
-          <Scale className="w-5 h-5" /> หน่วยนับ (Units)
-        </button>
-        <button 
-          onClick={() => setActiveTab("backup")}
-          className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === "backup" ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50"}`}
-        >
-          <Database className="w-5 h-5" /> สำรองข้อมูล (Backup)
-        </button>
+      <div className="w-56 card p-2 flex flex-col gap-1 shrink-0">
+        {tabs.map(tab => {
+          const Icon = tab.icon
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={cn(
+                "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-semibold transition-colors",
+                activeTab === tab.key ? "bg-blue-50 text-primary" : "text-slate-600 hover:bg-slate-50"
+              )}
+            >
+              <Icon className="w-4 h-4" /> {tab.label}
+            </button>
+          )
+        })}
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
-        
+      <div className="flex-1 card p-0 overflow-hidden flex flex-col">
+
         {/* TAB 1: INFO */}
         {activeTab === "info" && (
           <div className="p-8 flex flex-col h-full overflow-y-auto max-w-3xl">
