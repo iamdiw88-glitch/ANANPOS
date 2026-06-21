@@ -1,7 +1,6 @@
-import { PrismaClient } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
 import { DeliveryBoard } from "@/components/delivery/delivery-board"
 
-const prisma = new PrismaClient()
 
 // Disable caching to always show the latest delivery statuses
 export const dynamic = "force-dynamic"

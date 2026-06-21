@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { renderToStream } from '@react-pdf/renderer';
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
-
-const prisma = new PrismaClient();
 
 // Optional: Register a Thai font here in production for proper Thai rendering
 // Font.register({ family: 'Sarabun', src: 'path-to-sarabun-font.ttf' });
@@ -73,7 +71,7 @@ const InvoicePDF = ({ sale }: { sale: any }) => (
             <Text>วันที่: {new Date(sale.saleDate).toLocaleDateString('th-TH')}</Text>
           </View>
           <View style={styles.row}>
-            <Text>พนักงานขาย: {sale.user?.name}</Text>
+            <Text>พนักงานขาย: {sale.createdBy?.name}</Text>
           </View>
         </View>
       </View>
@@ -122,13 +120,14 @@ const InvoicePDF = ({ sale }: { sale: any }) => (
   </Document>
 );
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const sale = await prisma.sale.findUnique({
-    where: { id: Number(params.id) },
+    where: { id: Number(id) },
     include: {
       items: { include: { product: true, productUnit: { include: { unit: true } } } },
       customer: true,
-      user: true
+      createdBy: true
     }
   });
 

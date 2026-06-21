@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
-
-const prisma = new PrismaClient()
 
 export async function POST(req: Request) {
   try {
@@ -42,18 +40,22 @@ export async function POST(req: Request) {
       const billNo = `INV-${todayStr}-${String(countToday + 1).padStart(4, '0')}`
 
       // 2. Create Sale and SaleItems
+      const paidAmountNum = Number(paidAmount)
+      const grandTotalNum = Number(grandTotal)
+      const status = paidAmountNum >= grandTotalNum ? 'PAID' : paidAmountNum > 0 ? 'PARTIAL' : 'UNPAID'
+
       const sale = await tx.sale.create({
         data: {
           billNo,
-          userId: Number(session.user.id),
+          createdById: Number(session.user.id),
           customerId: customerId ? Number(customerId) : null,
           subtotal: Number(subtotal),
           discountAmount: Number(discountAmount),
           vatAmount: Number(vatAmount),
-          grandTotal: Number(grandTotal),
+          grandTotal: grandTotalNum,
           paymentType,
-          paidAmount: Number(paidAmount),
-          status: 'COMPLETED',
+          paidAmount: paidAmountNum,
+          status,
           docType,
           items: {
             create: items.map((item: any) => ({
@@ -86,10 +88,11 @@ export async function POST(req: Request) {
           await tx.stockMovement.create({
             data: {
               productId: product.id,
-              type: 'SALE',
-              quantity: Number(item.quantityBase),
-              referenceDoc: billNo,
-              userId: Number(session.user.id)
+              movementType: 'SALE_OUT',
+              quantityBase: Number(item.quantityBase),
+              refType: 'SALE',
+              refId: sale.id,
+              createdById: Number(session.user.id)
             }
           })
         }

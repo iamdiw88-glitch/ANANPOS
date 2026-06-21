@@ -1,8 +1,7 @@
-import { PrismaClient } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { DailyReportClient } from "@/components/reports/daily-report-client"
 
-const prisma = new PrismaClient()
 
 export default async function DailyReportPage(props: { searchParams: Promise<{ date?: string }> }) {
   const searchParams = await props.searchParams;

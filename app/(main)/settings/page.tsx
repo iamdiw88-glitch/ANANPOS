@@ -1,7 +1,6 @@
-import { PrismaClient } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
 import { SettingsClient } from "@/components/settings/settings-client"
 
-const prisma = new PrismaClient()
 
 export const dynamic = "force-dynamic"
 

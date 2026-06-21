@@ -1,8 +1,7 @@
-import { PrismaClient } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import { Plus, RotateCcw } from "lucide-react"
 
-const prisma = new PrismaClient()
 
 export const dynamic = "force-dynamic"
 

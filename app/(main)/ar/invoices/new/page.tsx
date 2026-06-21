@@ -1,9 +1,8 @@
-import { PrismaClient } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { CreateInvoiceClient } from "@/components/ar/create-invoice-client"
 
-const prisma = new PrismaClient()
 
 export default async function NewInvoicePage({
   searchParams

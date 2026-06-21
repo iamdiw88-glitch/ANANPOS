@@ -20,7 +20,7 @@ export function ReceiptClient({ sale }: { sale: any }) {
       <div className="mb-4 text-xs">
         <p>เลขที่บิล: {sale.billNo}</p>
         <p>วันที่: {new Date(sale.saleDate).toLocaleString('th-TH')}</p>
-        <p>พนักงาน: {sale.user?.name}</p>
+        <p>พนักงาน: {sale.createdBy?.name}</p>
         {sale.customer && <p>ลูกค้า: {sale.customer.name}</p>}
       </div>
 

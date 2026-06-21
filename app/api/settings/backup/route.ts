@@ -5,6 +5,12 @@ import { promisify } from "util"
 const execAsync = promisify(exec)
 
 export async function GET() {
+  if (process.env.VERCEL) {
+    return NextResponse.json({
+      error: "การสำรองข้อมูลผ่าน pg_dump ใช้ไม่ได้บน Vercel (serverless ไม่มี pg_dump ติดตั้งและไฟล์ระบบเป็น read-only) กรุณาใช้ฟีเจอร์ Backup / Point-in-Time Recovery ของ Supabase แทน",
+    }, { status: 501 })
+  }
+
   try {
     const dbUrl = process.env.DIRECT_URL || process.env.DATABASE_URL
     if (!dbUrl) {
@@ -12,7 +18,6 @@ export async function GET() {
     }
 
     // Try to run pg_dump. This requires pg_dump to be installed on the server.
-    // If it's a remote server like Vercel, this will fail.
     // For local Windows environments, make sure PostgreSQL bin folder is in PATH.
     try {
       // Clean URL just in case, though usually works directly

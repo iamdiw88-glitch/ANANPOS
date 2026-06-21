@@ -1,7 +1,6 @@
-import { PrismaClient } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
 import { InventoryClient } from "@/components/reports/inventory-client"
 
-const prisma = new PrismaClient()
 
 export const dynamic = "force-dynamic"
 

@@ -1,15 +1,14 @@
-import { PrismaClient } from "@prisma/client"
 import { notFound } from "next/navigation"
 import { InvoiceDetailClient } from "@/components/ar/invoice-detail-client"
-
-const prisma = new PrismaClient()
+import { prisma } from "@/lib/prisma"
 
 export default async function InvoiceDetailPage({
   params
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
-  const invoiceId = parseInt(params.id)
+  const { id } = await params
+  const invoiceId = parseInt(id)
   if (isNaN(invoiceId)) return notFound()
 
   const invoice = await prisma.invoice.findUnique({

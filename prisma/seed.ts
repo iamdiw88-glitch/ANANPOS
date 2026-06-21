@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 async function main() {
   // 1. Seed Units
   const unitNames = ['ถุง', 'พาเลท', 'เส้น', 'มัด', 'คิว', 'ตัน', 'อัน', 'ม้วน', 'กล่อง', 'แผ่น'];
-  const units = [];
+  const units: Awaited<ReturnType<typeof prisma.unit.upsert>>[] = [];
   for (const name of unitNames) {
     const unit = await prisma.unit.upsert({
       where: { name },
@@ -18,7 +18,7 @@ async function main() {
   
   // 2. Seed Categories
   const categoryNames = ['ปูนซีเมนต์', 'เหล็ก', 'หิน/ทราย', 'อิฐ/บล็อก', 'กระเบื้อง', 'สี', 'ท่อ/ข้อต่อ', 'อื่นๆ'];
-  const categories = [];
+  const categories: Awaited<ReturnType<typeof prisma.category.upsert>>[] = [];
   for (let i = 0; i < categoryNames.length; i++) {
     const category = await prisma.category.upsert({
       where: { name: categoryNames[i] },

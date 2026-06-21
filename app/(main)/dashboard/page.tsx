@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import Link from "next/link"
 import { 
@@ -13,7 +13,6 @@ import {
   ReceiptText
 } from "lucide-react"
 
-const prisma = new PrismaClient()
 
 const formatBaht = (amount: number) => {
   return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(amount)

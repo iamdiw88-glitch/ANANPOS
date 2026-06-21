@@ -1,9 +1,8 @@
-import { PrismaClient } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { PaymentClient } from "@/components/ar/payment-client"
 
-const prisma = new PrismaClient()
 
 export default async function NewPaymentPage({
   searchParams

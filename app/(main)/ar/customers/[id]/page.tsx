@@ -1,15 +1,14 @@
-import { PrismaClient } from "@prisma/client"
 import { notFound } from "next/navigation"
 import { CustomerDetailClient } from "@/components/ar/customer-detail-client"
-
-const prisma = new PrismaClient()
+import { prisma } from "@/lib/prisma"
 
 export default async function CustomerDetailPage({
   params
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
-  const customerId = parseInt(params.id)
+  const { id } = await params
+  const customerId = parseInt(id)
   if (isNaN(customerId)) return notFound()
 
   const customer = await prisma.customer.findUnique({

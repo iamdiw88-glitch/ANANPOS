@@ -56,6 +56,23 @@ npm run dev
 | `NEXTAUTH_SECRET` | Random secret for session signing |
 | `NEXTAUTH_URL` | App URL (e.g. `http://localhost:3000`) |
 
+## Deploying to Vercel + Supabase
+
+1. **Create a Supabase project** and grab the connection strings from Project Settings → Database:
+   - **Transaction pooler** (port 6543) → `DATABASE_URL`, with `?pgbouncer=true&connection_limit=1` appended
+   - **Direct connection** (port 5432) → `DIRECT_URL`
+2. **Push the schema** to Supabase (run locally, pointed at Supabase):
+   ```bash
+   npx prisma db push
+   npx prisma db seed
+   ```
+3. **Import the repo into Vercel** and set the environment variables (`DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL` set to your production domain) in Project Settings → Environment Variables.
+4. Vercel runs `npm install` (which triggers `prisma generate` via `postinstall`) then `next build` automatically — no extra build configuration needed.
+
+Notes:
+- The Prisma client uses a singleton (`lib/prisma.ts`) so serverless function invocations reuse connections instead of exhausting the database's connection limit.
+- `pg_dump`-based backup (`/api/settings/backup`) only works on a server with `pg_dump` installed; on Vercel it returns a 501 — use Supabase's built-in Backups / Point-in-Time Recovery instead.
+
 ## Project Structure
 
 ```

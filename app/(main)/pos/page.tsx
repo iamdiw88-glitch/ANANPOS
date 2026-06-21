@@ -1,7 +1,8 @@
-import { PrismaClient } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
 import { POSClient } from "@/components/pos/pos-client"
 
-const prisma = new PrismaClient()
+export const dynamic = "force-dynamic"
+
 
 export default async function POSPage() {
   const products = await prisma.product.findMany({

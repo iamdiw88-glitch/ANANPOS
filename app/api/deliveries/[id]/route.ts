@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server"
-import { PrismaClient } from "@prisma/client"
+import { prisma } from '@/lib/prisma'
 
-const prisma = new PrismaClient()
-
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const deliveryId = parseInt(params.id)
+    const { id } = await params
+    const deliveryId = parseInt(id)
     if (isNaN(deliveryId)) {
       return NextResponse.json({ error: "Invalid delivery ID" }, { status: 400 })
     }

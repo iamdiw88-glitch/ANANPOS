@@ -1,17 +1,16 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 
-const prisma = new PrismaClient()
-
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth()
     if (!session || (session.user.role !== 'OWNER' && session.user.role !== 'STAFF')) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const saleId = Number(params.id)
+    const { id } = await params
+    const saleId = Number(id)
 
     // Run transaction to void bill, restore stock, and reverse AR
     await prisma.$transaction(async (tx) => {
@@ -33,7 +32,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       for (const item of sale.items) {
         // If it was a stock item, we need to add back the quantityBase
         const movement = await tx.stockMovement.findFirst({
-          where: { productId: item.productId, referenceDoc: sale.billNo }
+          where: { productId: item.productId, refType: 'SALE', refId: sale.id }
         })
 
         if (movement) {
@@ -47,10 +46,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
           await tx.stockMovement.create({
             data: {
               productId: item.productId,
-              type: 'ADJUST_IN', 
-              quantity: item.quantityBase,
-              referenceDoc: `VOID-${sale.billNo}`,
-              userId: Number(session.user.id)
+              movementType: 'ADJUST',
+              quantityBase: item.quantityBase,
+              refType: 'ADJUSTMENT',
+              refId: sale.id,
+              note: `VOID-${sale.billNo}`,
+              createdById: Number(session.user.id)
             }
           })
         }

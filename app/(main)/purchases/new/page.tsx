@@ -1,9 +1,8 @@
-import { PrismaClient } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { CreatePurchaseClient } from "@/components/purchases/create-purchase-client"
 
-const prisma = new PrismaClient()
 
 export default async function NewPurchasePage() {
   const session = await auth()

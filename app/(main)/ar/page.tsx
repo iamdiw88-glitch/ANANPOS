@@ -1,8 +1,9 @@
-import { PrismaClient } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
 import { ArClient } from "@/components/ar/ar-client"
 import { differenceInDays } from "date-fns"
 
-const prisma = new PrismaClient()
+export const dynamic = "force-dynamic"
+
 
 export default async function ARPage() {
   const customers = await prisma.customer.findMany({

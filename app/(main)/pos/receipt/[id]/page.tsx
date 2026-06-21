@@ -1,12 +1,11 @@
-import { PrismaClient } from "@prisma/client"
 import { notFound } from "next/navigation"
 import { ReceiptClient } from "./receipt-client"
+import { prisma } from "@/lib/prisma"
 
-const prisma = new PrismaClient()
-
-export default async function ReceiptPage({ params }: { params: { id: string } }) {
+export default async function ReceiptPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const sale = await prisma.sale.findUnique({
-    where: { id: Number(params.id) },
+    where: { id: Number(id) },
     include: {
       items: {
         include: {
@@ -17,7 +16,7 @@ export default async function ReceiptPage({ params }: { params: { id: string } }
         }
       },
       customer: true,
-      user: true
+      createdBy: true
     }
   })
 

@@ -1,7 +1,8 @@
-import { PrismaClient } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
 import { InventoryClient } from "@/components/inventory/inventory-client"
 
-const prisma = new PrismaClient()
+export const dynamic = "force-dynamic"
+
 
 export default async function InventoryPage() {
   const products = await prisma.product.findMany({
