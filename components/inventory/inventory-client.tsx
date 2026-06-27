@@ -216,7 +216,7 @@ export function InventoryClient({ products, categories }: { products: any[], cat
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="ghost" onClick={() => setDamageProduct(null)}>ยกเลิก</Button>
-              <Button type="submit" variant="destructive">ยืนยันการตัดจ่าย</Button>
+              <Button type="submit" variant="danger">ยืนยันการตัดจ่าย</Button>
             </div>
           </form>
         </div>

@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server"
 import { prisma } from '@/lib/prisma'
+import { apiErrorResponse, requireApiSession } from "@/lib/api"
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url)
-  const billNo = searchParams.get("billNo")
-
-  if (!billNo) {
-    return NextResponse.json({ error: "billNo is required" }, { status: 400 })
-  }
-
   try {
+    await requireApiSession()
+
+    const { searchParams } = new URL(req.url)
+    const billNo = searchParams.get("billNo")
+
+    if (!billNo) {
+      return NextResponse.json({ error: "billNo is required" }, { status: 400 })
+    }
+
     const sale = await prisma.sale.findUnique({
       where: { billNo },
       include: {
@@ -30,8 +33,7 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json(sale)
-  } catch (error: any) {
-    console.error("Error finding sale:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    return apiErrorResponse(error, "Error finding sale")
   }
 }

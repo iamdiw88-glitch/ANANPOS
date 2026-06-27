@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { apiErrorResponse, parsePositiveId, requireApiSession } from "@/lib/api"
 
 export async function GET(
   request: Request,
-  { params }: { params: { saleId: string } }
+  { params }: { params: Promise<{ saleId: string }> }
 ) {
   try {
-    const saleId = Number(params.saleId)
-    if (isNaN(saleId)) {
-      return NextResponse.json({ success: false, error: "Invalid sale ID" }, { status: 400 })
-    }
+    await requireApiSession()
+    const { saleId: saleIdParam } = await params
+    const saleId = parsePositiveId(saleIdParam, "sale ID")
 
     const sale = await prisma.sale.findUnique({
       where: { id: saleId },
@@ -36,8 +36,7 @@ export async function GET(
     }
 
     return NextResponse.json({ success: true, data: sale })
-  } catch (error: any) {
-    console.error("Error fetching print data:", error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  } catch (error) {
+    return apiErrorResponse(error, "Error fetching print data")
   }
 }

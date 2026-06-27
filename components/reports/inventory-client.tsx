@@ -63,7 +63,7 @@ export function InventoryClient({ initialData }: { initialData: any[] }) {
       return
     }
     
-    let printContents = `
+    const printContents = `
       <div style="font-family: sans-serif; padding: 20px;">
         <h2 style="text-align: center;">ใบสั่งซื้อที่แนะนำ (Suggested Purchase Order)</h2>
         <p>วันที่พิมพ์: ${new Date().toLocaleDateString('th-TH')}</p>

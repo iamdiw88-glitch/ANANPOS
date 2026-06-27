@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { renderToStream } from '@react-pdf/renderer';
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
+import { apiErrorResponse, parsePositiveId, requireApiSession } from '@/lib/api';
 
 // Optional: Register a Thai font here in production for proper Thai rendering
 // Font.register({ family: 'Sarabun', src: 'path-to-sarabun-font.ttf' });
@@ -121,35 +122,41 @@ const InvoicePDF = ({ sale }: { sale: any }) => (
 );
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const sale = await prisma.sale.findUnique({
-    where: { id: Number(id) },
-    include: {
-      items: { include: { product: true, productUnit: { include: { unit: true } } } },
-      customer: true,
-      createdBy: true
+  try {
+    await requireApiSession()
+    const { id } = await params
+    const saleId = parsePositiveId(id, "sale ID")
+    const sale = await prisma.sale.findUnique({
+      where: { id: saleId },
+      include: {
+        items: { include: { product: true, productUnit: { include: { unit: true } } } },
+        customer: true,
+        createdBy: true
+      }
+    });
+
+    if (!sale) {
+      return new NextResponse('Not found', { status: 404 });
     }
-  });
 
-  if (!sale) {
-    return new NextResponse('Not found', { status: 404 });
-  }
-
-  const stream = await renderToStream(<InvoicePDF sale={sale} />);
+    const stream = await renderToStream(<InvoicePDF sale={sale} />);
   
-  // Convert Node readable stream to Web readable stream for Next.js response
-  const webStream = new ReadableStream({
-    start(controller) {
-      stream.on('data', (chunk) => controller.enqueue(chunk));
-      stream.on('end', () => controller.close());
-      stream.on('error', (err) => controller.error(err));
-    }
-  });
+    // Convert Node readable stream to Web readable stream for Next.js response
+    const webStream = new ReadableStream({
+      start(controller) {
+        stream.on('data', (chunk) => controller.enqueue(chunk));
+        stream.on('end', () => controller.close());
+        stream.on('error', (err) => controller.error(err));
+      }
+    });
 
-  return new NextResponse(webStream, {
-    headers: {
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `inline; filename="invoice-${sale.billNo}.pdf"`
-    }
-  });
+    return new NextResponse(webStream, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `inline; filename="invoice-${sale.billNo}.pdf"`
+      }
+    });
+  } catch (error) {
+    return apiErrorResponse(error, "Failed to render invoice")
+  }
 }

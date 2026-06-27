@@ -19,6 +19,7 @@ export default async function NewPurchasePage() {
     include: {
       category: { select: { name: true } },
       productUnits: {
+        where: { isActive: true },
         include: { unit: true }
       }
     }

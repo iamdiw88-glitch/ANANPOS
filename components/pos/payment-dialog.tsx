@@ -70,12 +70,13 @@ export function PaymentDialog({
         })
       })
 
-      if (!res.ok) throw new Error("Sale failed")
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Sale failed")
+      }
       onSuccess()
-    } catch (e) {
-      alert("เกิดข้อผิดพลาดในการบันทึกบิล (API อาจจะยังไม่พร้อมใช้งาน)")
-      // For MVP Checkpoint 1.5, we will close on success assuming API might not exist yet
-      onSuccess() 
+    } catch (e: any) {
+      alert(e.message || "เกิดข้อผิดพลาดในการบันทึกบิล")
     } finally {
       setLoading(false)
     }

@@ -1,18 +1,23 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { apiErrorResponse, parsePositiveId, requireApiSession } from "@/lib/api"
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const id = Number(params.id)
+    await requireApiSession()
+    const { id: idParam } = await params
+    const id = parsePositiveId(idParam, "product ID")
+
     const movements = await prisma.stockMovement.findMany({
       where: { productId: id },
       include: {
-        createdBy: { select: { id: true, name: true } }
+        createdBy: { select: { id: true, name: true } },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: "desc" },
     })
     return NextResponse.json(movements)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    return apiErrorResponse(error, "Failed to fetch stock movements")
   }
 }
+

@@ -1,69 +1,98 @@
-import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { NextResponse } from "next/server"
+import { z } from "zod"
+import { prisma } from "@/lib/prisma"
+import { ApiError, apiErrorResponse, parseJsonBody, parsePositiveId, requireApiSession } from "@/lib/api"
+
+const voidSchema = z.object({
+  reason: z.string().trim().optional(),
+}).default({})
+
+function nextInvoiceStatus(totalAmount: number, paidAmount: number) {
+  if (paidAmount >= totalAmount) return "PAID"
+  if (paidAmount > 0) return "PARTIAL"
+  return "OPEN"
+}
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await auth()
-    if (!session || (session.user.role !== 'OWNER' && session.user.role !== 'STAFF')) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
+    const { userId } = await requireApiSession(["OWNER", "STAFF"])
     const { id } = await params
-    const saleId = Number(id)
+    const saleId = parsePositiveId(id, "sale ID")
+    const body = await parseJsonBody(req, voidSchema)
 
-    // Run transaction to void bill, restore stock, and reverse AR
     await prisma.$transaction(async (tx) => {
       const sale = await tx.sale.findUnique({
         where: { id: saleId },
-        include: { items: true }
+        include: {
+          items: { include: { product: true } },
+          invoiceSales: { include: { invoice: true } },
+        },
       })
 
-      if (!sale) throw new Error("Sale not found")
-      if (sale.status === 'VOID') throw new Error("Already voided")
-
-      // 1. Mark Sale as VOID
-      await tx.sale.update({
-        where: { id: saleId },
-        data: { status: 'VOID' }
-      })
-
-      // 2. Restore Stock
-      for (const item of sale.items) {
-        // If it was a stock item, we need to add back the quantityBase
-        const movement = await tx.stockMovement.findFirst({
-          where: { productId: item.productId, refType: 'SALE', refId: sale.id }
-        })
-
-        if (movement) {
-          // Restore StockBalance
-          await tx.stockBalance.update({
-            where: { productId: item.productId },
-            data: { quantityOnHand: { increment: item.quantityBase } }
-          })
-
-          // Create reversing StockMovement
-          await tx.stockMovement.create({
-            data: {
-              productId: item.productId,
-              movementType: 'ADJUST',
-              quantityBase: item.quantityBase,
-              refType: 'ADJUSTMENT',
-              refId: sale.id,
-              note: `VOID-${sale.billNo}`,
-              createdById: Number(session.user.id)
-            }
-          })
-        }
+      if (!sale) throw new ApiError("Sale not found", 404)
+      if (sale.status === "VOID") throw new ApiError("Already voided", 400)
+      if (sale.paymentType !== "CASH" && sale.paidAmount > 0) {
+        throw new ApiError("บิลนี้มีการรับชำระแล้ว กรุณาทำรายการคืนสินค้า/ลดหนี้แทน", 400)
+      }
+      if (sale.invoiceSales.some((link) => link.invoice.paidAmount > 0)) {
+        throw new ApiError("ใบวางบิลนี้มีการรับชำระแล้ว ไม่สามารถยกเลิกบิลขายโดยตรงได้", 400)
       }
 
-      // 3. Reverse Customer Balance if CREDIT/PARTIAL
-      if (sale.customerId && (sale.paymentType === 'CREDIT' || sale.paymentType === 'PARTIAL')) {
+      await tx.sale.update({
+        where: { id: saleId },
+        data: {
+          status: "VOID",
+          voidReason: body.reason || "Void sale",
+          voidedById: userId,
+          voidedAt: new Date(),
+        },
+      })
+
+      for (const item of sale.items) {
+        if (!item.product.isStockItem) continue
+
+        await tx.stockBalance.upsert({
+          where: { productId: item.productId },
+          update: { quantityOnHand: { increment: item.quantityBase } },
+          create: { productId: item.productId, quantityOnHand: item.quantityBase },
+        })
+
+        await tx.stockMovement.create({
+          data: {
+            productId: item.productId,
+            movementType: "ADJUST",
+            quantityBase: item.quantityBase,
+            refType: "ADJUSTMENT",
+            refId: sale.id,
+            note: `VOID-${sale.billNo}`,
+            createdById: userId,
+          },
+        })
+      }
+
+      for (const link of sale.invoiceSales) {
+        const newTotal = Math.max(0, link.invoice.totalAmount - link.amount)
+        const newBalance = Math.max(0, link.invoice.balance - link.amount)
+        await tx.invoiceSale.update({
+          where: { invoiceId_saleId: { invoiceId: link.invoiceId, saleId: link.saleId } },
+          data: { amount: 0 },
+        })
+        await tx.invoice.update({
+          where: { id: link.invoiceId },
+          data: {
+            totalAmount: newTotal,
+            balance: newBalance,
+            status: nextInvoiceStatus(newTotal, link.invoice.paidAmount),
+          },
+        })
+      }
+
+      if (sale.customerId && (sale.paymentType === "CREDIT" || sale.paymentType === "PARTIAL")) {
         const creditAmount = sale.grandTotal - sale.paidAmount
         if (creditAmount > 0) {
           await tx.customer.update({
             where: { id: sale.customerId },
-            data: { balance: { decrement: creditAmount } }
+            data: { balance: { decrement: creditAmount } },
           })
         }
       }
@@ -71,7 +100,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error(error)
-    return NextResponse.json({ error: "Failed to void sale" }, { status: 500 })
+    return apiErrorResponse(error, "Failed to void sale")
   }
 }
+

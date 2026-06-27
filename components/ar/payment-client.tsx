@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Save, Calendar, CheckCircle } from "lucide-react"
+import { AlertTriangle, ArrowLeft, Save, Calendar, CheckCircle } from "lucide-react"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -242,9 +242,12 @@ export function PaymentClient({ customers, defaultCustomerId, defaultInvoiceId, 
                   placeholder="0.00"
                 />
               </div>
-              {!isAuto && Math.abs((parseFloat(amountInput)||0) - totalAllocated) > 0.01 && (
-                <p className="text-orange-500 text-xs mt-1">⚠️ ยอดจัดสรรไม่ตรงกับยอดรับเงิน</p>
-              )}
+                {!isAuto && Math.abs((parseFloat(amountInput)||0) - totalAllocated) > 0.01 && (
+                  <p className="text-orange-500 text-xs mt-1 inline-flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    ยอดจัดสรรไม่ตรงกับยอดรับเงิน
+                  </p>
+                )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">

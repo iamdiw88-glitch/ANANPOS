@@ -12,6 +12,7 @@ export default async function ProductsPage() {
       category: true,
       baseUnit: true,
       productUnits: {
+        where: { isActive: true },
         include: { unit: true }
       },
       stockBalance: true

@@ -19,6 +19,7 @@ export default async function POSPage() {
         category: { select: { id: true, name: true } },
         baseUnit: { select: { id: true, name: true } },
         productUnits: {
+          where: { isActive: true },
           select: {
             id: true,
             unitId: true,

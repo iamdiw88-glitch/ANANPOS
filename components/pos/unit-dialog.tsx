@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { X, Minus, Plus } from "lucide-react"
+import { AlertTriangle, X, Minus, Plus } from "lucide-react"
 
 export function UnitDialog({ product, customer, onClose, onAdd }: any) {
   const getPrice = (u: any) => customer?.priceTier === "CONTRACTOR" && u.contractorPrice ? u.contractorPrice : u.price
@@ -10,10 +10,14 @@ export function UnitDialog({ product, customer, onClose, onAdd }: any) {
   const [selectedUnit, setSelectedUnit] = useState<any>(defaultUnit)
   const [quantity, setQuantity] = useState<number | string>(1)
   const [customPrice, setCustomPrice] = useState<number | string>(getPrice(defaultUnit) || 0)
+  const quantityNum = Number(quantity)
+  const requestedBaseQty = Number.isFinite(quantityNum) ? quantityNum * selectedUnit.conversionRate : 0
+  const isStockInsufficient = product.isStockItem && ((product.stockBalance?.quantityOnHand || 0) - requestedBaseQty < 0)
 
   const handleAdd = () => {
     const qty = Number(quantity)
     if (isNaN(qty) || qty <= 0) return
+    if (isStockInsufficient) return
 
     const price = product.isStockItem ? getPrice(selectedUnit) : Number(customPrice)
     
@@ -115,10 +119,10 @@ export function UnitDialog({ product, customer, onClose, onAdd }: any) {
             )}
           </div>
 
-          {product.isStockItem && ((product.stockBalance?.quantityOnHand || 0) - (Number(quantity) * selectedUnit.conversionRate) < 0) && (
+          {isStockInsufficient && (
             <div className="badge-warning rounded-md p-3 font-medium flex gap-2 items-center text-sm">
-              <span className="text-lg">⚠️</span>
-              <span>คำเตือน: สต็อกไม่พอ (มีอยู่ {product.stockBalance?.quantityOnHand || 0} {product.baseUnit.name}) สต็อกจะติดลบหลังการขาย</span>
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>สต็อกไม่พอ (มีอยู่ {product.stockBalance?.quantityOnHand || 0} {product.baseUnit.name}) ไม่สามารถเพิ่มลงบิลได้</span>
             </div>
           )}
         </div>
@@ -126,7 +130,8 @@ export function UnitDialog({ product, customer, onClose, onAdd }: any) {
         <div className="mt-5">
           <button
             onClick={handleAdd}
-            className="w-full h-12 bg-primary hover:bg-primary/90 text-white rounded-md text-lg font-heading font-bold transition-colors active:scale-[0.98] shadow-sm flex justify-center items-center gap-2"
+            disabled={isStockInsufficient}
+            className="w-full h-12 bg-primary hover:bg-primary/90 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-md text-lg font-heading font-bold transition-colors active:scale-[0.98] shadow-sm flex justify-center items-center gap-2"
           >
             เพิ่มลงบิล
           </button>

@@ -5,10 +5,28 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Plus, Trash2, ArrowLeft } from "lucide-react"
 
+type ProductUnitForm = {
+  id?: number
+  unitId: number | string
+  conversionRate: number
+  price: number
+  isDefaultSale: boolean
+}
+
+type ProductFormState = {
+  code: string
+  name: string
+  categoryId: number | string
+  baseUnitId: number | string
+  reorderPoint: number
+  isStockItem: boolean
+  productUnits: ProductUnitForm[]
+}
+
 export function ProductForm({ initialData, categories, units }: { initialData?: any, categories: any[], units: any[] }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ProductFormState>({
     code: initialData?.code || "",
     name: initialData?.name || "",
     categoryId: initialData?.categoryId || categories[0]?.id || "",
