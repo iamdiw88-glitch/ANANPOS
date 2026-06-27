@@ -1,29 +1,35 @@
 import { NextResponse } from "next/server"
-import { prisma } from '@/lib/prisma'
+import { prisma } from "@/lib/prisma"
 
-export async function POST(req: Request) {
+export async function GET() {
   try {
-    const body = await req.json()
-    const { settings } = body
+    const settings = await prisma.setting.findMany()
+    const settingsMap = settings.reduce((acc, curr) => {
+      acc[curr.key] = curr.value
+      return acc
+    }, {} as Record<string, string>)
+    return NextResponse.json({ success: true, data: settingsMap })
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  }
+}
 
-    if (!settings || typeof settings !== 'object') {
-      return NextResponse.json({ error: "Invalid settings payload" }, { status: 400 })
-    }
-
-    // Upsert each setting
-    const promises = Object.keys(settings).map(key => {
-      return prisma.setting.upsert({
-        where: { key },
-        create: { key, value: String(settings[key]) },
-        update: { value: String(settings[key]) }
-      })
+export async function PUT(request: Request) {
+  try {
+    const data = await request.json()
+    
+    await prisma.$transaction(async (tx) => {
+      for (const [key, value] of Object.entries(data)) {
+        await tx.setting.upsert({
+          where: { key },
+          update: { value: String(value) },
+          create: { key, value: String(value) }
+        })
+      }
     })
-
-    await Promise.all(promises)
-
+    
     return NextResponse.json({ success: true })
   } catch (error: any) {
-    console.error("Error saving settings:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }

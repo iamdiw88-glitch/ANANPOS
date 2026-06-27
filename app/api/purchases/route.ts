@@ -1,106 +1,68 @@
 import { NextResponse } from "next/server"
-import { prisma } from '@/lib/prisma'
+import { prisma } from "@/lib/prisma"
+import { auth } from "@/lib/auth"
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const body = await req.json()
-    const { supplierId, items, note, createdById, purchaseDate } = body
+    const session = await auth()
+    if (!session?.user?.id) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
 
-    if (!supplierId || !items || items.length === 0 || !createdById) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
-    }
+    const data = await request.json()
+    // data: { supplierId, purchaseDate, subtotal, total, items: [{productId, productUnitId, quantity, unitCost, lineTotal}] }
 
-    // Generate Purchase No (PO-YYMMDD-XXXX)
-    const today = new Date()
-    const yy = String(today.getFullYear()).slice(2)
-    const mm = String(today.getMonth() + 1).padStart(2, '0')
-    const dd = String(today.getDate()).padStart(2, '0')
-    const prefix = `PO${yy}${mm}${dd}`
-
-    const result = await prisma.$transaction(async (tx) => {
-      const lastPO = await tx.purchase.findFirst({
-        where: { purchaseNo: { startsWith: prefix } },
-        orderBy: { purchaseNo: 'desc' }
-      })
-      
-      let nextNum = 1
-      if (lastPO) {
-        nextNum = parseInt(lastPO.purchaseNo.slice(-4)) + 1
-      }
-      const purchaseNo = `${prefix}${String(nextNum).padStart(4, '0')}`
-
-      let subtotal = 0
-      for (const item of items) {
-        subtotal += item.quantity * item.unitCost
-      }
-
+    const purchase = await prisma.$transaction(async (tx) => {
       // 1. Create Purchase
-      const purchase = await tx.purchase.create({
+      const p = await tx.purchase.create({
         data: {
-          purchaseNo,
-          supplierId,
-          purchaseDate: new Date(purchaseDate),
-          subtotal,
-          total: subtotal,
-          status: "RECEIVED", // Assume received immediately for MVP
-          note,
-          createdById,
+          purchaseNo: `PO${new Date().getTime()}`, // simple PO generation
+          supplierId: data.supplierId,
+          purchaseDate: new Date(data.purchaseDate),
+          subtotal: data.subtotal,
+          total: data.total,
+          status: 'RECEIVED', // Assuming direct receipt for MVP
+          note: data.note,
+          createdById: Number(session.user.id),
           items: {
-            create: items.map((item: any) => ({
-              productId: item.productId,
-              productUnitId: item.productUnitId,
-              quantity: item.quantity,
-              unitCost: item.unitCost,
-              lineTotal: item.quantity * item.unitCost
+            create: data.items.map((i: any) => ({
+              productId: i.productId,
+              productUnitId: i.productUnitId,
+              quantity: i.quantity,
+              unitCost: i.unitCost,
+              lineTotal: i.lineTotal
             }))
           }
         },
-        include: { items: true }
+        include: { items: { include: { productUnit: true } } }
       })
 
-      // 2. Update Stock and create Stock Movements
-      for (const item of purchase.items) {
-        // Find product unit to get conversion rate
-        const productUnit = await tx.productUnit.findUnique({
-          where: { id: item.productUnitId }
-        })
-        
-        if (!productUnit) throw new Error(`Product Unit ${item.productUnitId} not found`)
-        
-        const quantityBase = item.quantity * productUnit.conversionRate
+      // 2. Increment Stock and Log Movement
+      for (const item of p.items) {
+        const qtyBase = item.quantity * item.productUnit.conversionRate
 
-        // Create StockMovement
         await tx.stockMovement.create({
           data: {
             productId: item.productId,
-            movementType: "PURCHASE_IN",
-            quantityBase,
-            unitCost: item.unitCost / productUnit.conversionRate, // Cost per base unit
-            refType: "PURCHASE",
-            refId: purchase.id,
-            createdById
+            movementType: 'PURCHASE_IN',
+            quantityBase: qtyBase,
+            unitCost: item.unitCost / item.productUnit.conversionRate,
+            refType: 'PURCHASE',
+            refId: p.id,
+            createdById: Number(session.user.id)
           }
         })
 
-        // Update StockBalance
         await tx.stockBalance.upsert({
           where: { productId: item.productId },
-          create: {
-            productId: item.productId,
-            quantityOnHand: quantityBase
-          },
-          update: {
-            quantityOnHand: { increment: quantityBase }
-          }
+          update: { quantityOnHand: { increment: qtyBase } },
+          create: { productId: item.productId, quantityOnHand: qtyBase }
         })
       }
 
-      return purchase
+      return p
     })
 
-    return NextResponse.json(result)
+    return NextResponse.json({ success: true, data: purchase })
   } catch (error: any) {
-    console.error("Error creating purchase:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }
