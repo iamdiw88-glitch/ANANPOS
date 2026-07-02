@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { ApiError, apiErrorResponse, parseJsonBody, requireApiSession } from "@/lib/api"
+import { ApiError, apiErrorResponse, parseJsonBody, requireApiPermission } from "@/lib/api"
 
 const damageSchema = z.object({
   productId: z.coerce.number().int().positive(),
@@ -11,7 +11,7 @@ const damageSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const { userId } = await requireApiSession(["OWNER", "STAFF"])
+    const { userId } = await requireApiPermission("stock:adjust")
     const { productId, quantityBase, note } = await parseJsonBody(request, damageSchema)
     const quantity = Math.abs(Number(quantityBase))
 
@@ -56,4 +56,3 @@ export async function POST(request: Request) {
     return apiErrorResponse(error, "Failed to write off stock")
   }
 }
-

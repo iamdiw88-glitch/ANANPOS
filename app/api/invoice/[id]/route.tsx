@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { renderToStream } from '@react-pdf/renderer';
-import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { apiErrorResponse, parsePositiveId, requireApiSession } from '@/lib/api';
 
 // Optional: Register a Thai font here in production for proper Thai rendering
@@ -87,8 +87,8 @@ const InvoicePDF = ({ sale }: { sale: any }) => (
 
         {sale.items.map((item: any, i: number) => (
           <View style={styles.tableRow} key={i}>
-            <Text style={styles.col1}>{item.product.name}</Text>
-            <Text style={styles.col2}>{item.quantity} {item.productUnit.unit.name}</Text>
+            <Text style={styles.col1}>{item.customName || item.product.name}</Text>
+            <Text style={styles.col2}>{item.quantity} {item.customUnitName || item.productUnit.unit.name}</Text>
             <Text style={styles.col3}>{item.unitPrice.toFixed(2)}</Text>
             <Text style={styles.col4}>{item.lineTotal.toFixed(2)}</Text>
           </View>

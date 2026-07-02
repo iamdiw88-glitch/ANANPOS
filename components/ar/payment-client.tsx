@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { AlertTriangle, ArrowLeft, Save, Calendar, CheckCircle } from "lucide-react"
+import { AlertTriangle, ArrowLeft, Save, CheckCircle } from "lucide-react"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -20,7 +20,7 @@ export function PaymentClient({ customers, defaultCustomerId, defaultInvoiceId, 
   const [amountInput, setAmountInput] = useState<string>("")
   const [method, setMethod] = useState("CASH")
   const [reference, setReference] = useState("")
-  const [note, setNote] = useState("")
+  const [note] = useState("")
 
   const [isAuto, setIsAuto] = useState(true)
   const [manualAllocations, setManualAllocations] = useState<Record<number, number>>({})

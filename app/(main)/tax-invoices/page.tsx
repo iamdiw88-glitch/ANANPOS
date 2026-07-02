@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma"
-import Link from "next/link"
 import { FileText, Printer } from "lucide-react"
 import { PageHeader } from "@/components/ui/page-header"
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table"

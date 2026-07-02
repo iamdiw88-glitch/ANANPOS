@@ -161,16 +161,21 @@ const TaxInvoiceDocument = ({ sale }: TaxInvoiceProps) => (
           <Text style={styles.colTotal}>จำนวนเงิน</Text>
         </View>
         
-        {sale.items?.map((item: any, index: number) => (
-          <View style={styles.tableRow} key={item.id}>
-            <Text style={styles.colNo}>{index + 1}</Text>
-            <Text style={styles.colDesc}>{item.product?.name}</Text>
-            <Text style={styles.colQty}>{item.quantity}</Text>
-            <Text style={styles.colUnit}>{item.productUnit?.unit?.name}</Text>
-            <Text style={styles.colPrice}>{item.unitPrice.toFixed(2)}</Text>
-            <Text style={styles.colTotal}>{item.lineTotal.toFixed(2)}</Text>
-          </View>
-        ))}
+        {sale.items?.map((item: any, index: number) => {
+          const itemName = item.customName || item.product?.name
+          const unitName = item.customUnitName || item.productUnit?.unit?.name
+
+          return (
+            <View style={styles.tableRow} key={item.id}>
+              <Text style={styles.colNo}>{index + 1}</Text>
+              <Text style={styles.colDesc}>{itemName}</Text>
+              <Text style={styles.colQty}>{item.quantity}</Text>
+              <Text style={styles.colUnit}>{unitName}</Text>
+              <Text style={styles.colPrice}>{item.unitPrice.toFixed(2)}</Text>
+              <Text style={styles.colTotal}>{item.lineTotal.toFixed(2)}</Text>
+            </View>
+          )
+        })}
       </View>
 
       {/* Summary */}
@@ -190,10 +195,12 @@ const TaxInvoiceDocument = ({ sale }: TaxInvoiceProps) => (
             <Text>มูลค่าสินค้ายกเว้นภาษี / หลังหักส่วนลด:</Text>
             <Text>{((sale.subtotal || 0) - (sale.discountAmount || 0)).toFixed(2)}</Text>
           </View>
+          {sale.vatAmount > 0 && (
           <View style={styles.summaryRow}>
             <Text>ภาษีมูลค่าเพิ่ม (7%):</Text>
             <Text>{sale.vatAmount?.toFixed(2) || '0.00'}</Text>
           </View>
+          )}
           <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: '#000', marginTop: 5, paddingTop: 5 }]}>
             <Text style={styles.bold}>จำนวนเงินรวมทั้งสิ้น:</Text>
             <Text style={styles.bold}>{sale.grandTotal?.toFixed(2) || '0.00'}</Text>

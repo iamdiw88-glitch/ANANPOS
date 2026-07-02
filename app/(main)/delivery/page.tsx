@@ -20,6 +20,8 @@ export default async function DeliveryPage() {
     },
     include: {
       customer: { select: { name: true, phone: true } },
+      driver: { select: { id: true, name: true, nickname: true, phone: true, avatarColor: true } },
+      assignedVehicle: { select: { id: true, vehicleCode: true, plateNumber: true, vehicleType: true, brand: true, model: true } },
       sale: {
         include: {
           items: {

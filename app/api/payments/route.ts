@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import type { Prisma } from "@prisma/client"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { ApiError, apiErrorResponse, parseJsonBody, requireApiSession } from "@/lib/api"
+import { ApiError, apiErrorResponse, parseJsonBody, requireApiPermission } from "@/lib/api"
 import { lockDocumentSeries, nextSequenceFrom, yymmdd } from "@/lib/document-number"
 
 const allocationSchema = z.object({
@@ -55,7 +55,7 @@ async function applyInvoicePayment(tx: Prisma.TransactionClient, invoiceId: numb
 
 export async function POST(request: Request) {
   try {
-    const { userId } = await requireApiSession()
+    const { userId } = await requireApiPermission("credit:settle")
     const data = await parseJsonBody(request, paymentSchema)
     const amount = roundMoney(data.amount)
 
@@ -193,4 +193,3 @@ export async function POST(request: Request) {
     return apiErrorResponse(error, "Failed to create payment")
   }
 }
-

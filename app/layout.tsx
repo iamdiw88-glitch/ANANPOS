@@ -30,7 +30,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="th" suppressHydrationWarning className={`${nunitoSans.variable} ${rubik.variable}`}>
+    <html lang="th" suppressHydrationWarning data-scroll-behavior="smooth" className={`${nunitoSans.variable} ${rubik.variable}`}>
       <body className="font-sans antialiased bg-background text-foreground transition-all duration-200 min-h-screen">
         <FontProvider>
           {children}

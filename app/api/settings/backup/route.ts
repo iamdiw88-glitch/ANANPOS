@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server"
 import { execFile } from "child_process"
 import { promisify } from "util"
-import { apiErrorResponse, requireApiSession } from "@/lib/api"
+import { apiErrorResponse, requireApiPermission } from "@/lib/api"
 
 const execFileAsync = promisify(execFile)
 
 export async function GET() {
   try {
-    await requireApiSession(["OWNER"])
+    await requireApiPermission("settings:manage")
 
     if (process.env.VERCEL) {
       return NextResponse.json({
@@ -46,4 +46,3 @@ export async function GET() {
     return apiErrorResponse(error, "Backup API Error")
   }
 }
-

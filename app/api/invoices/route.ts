@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { ApiError, apiErrorResponse, parseJsonBody, requireApiSession } from "@/lib/api"
+import { ApiError, apiErrorResponse, parseJsonBody, requireApiPermission, requireApiSession } from "@/lib/api"
 import { lockDocumentSeries, nextSequenceFrom, yymmdd } from "@/lib/document-number"
 
 const invoiceSchema = z.object({
@@ -15,7 +15,7 @@ const roundMoney = (value: number) => Math.round(value * 100) / 100
 
 export async function POST(req: Request) {
   try {
-    const { userId } = await requireApiSession()
+    const { userId } = await requireApiPermission("credit:settle")
     const body = await parseJsonBody(req, invoiceSchema)
 
     const invoice = await prisma.$transaction(async (tx) => {
@@ -106,4 +106,3 @@ export async function GET(req: Request) {
     return apiErrorResponse(error, "Failed to fetch invoices")
   }
 }
-

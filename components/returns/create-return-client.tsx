@@ -35,17 +35,31 @@ export function CreateReturnClient({ currentUserId }: { currentUserId: number })
     setReturnItems([])
 
     try {
-      const res = await fetch(`/api/sales/search?billNo=${billNo}`)
-      if (!res.ok) throw new Error("ไม่พบบิลนี้ในระบบ")
+      const res = await fetch(`/api/sales/search?billNo=${encodeURIComponent(billNo)}`)
+      if (!res.ok) {
+        const err = await res.json().catch(() => null)
+        throw new Error(err?.error || "ไม่พบบิลนี้ในระบบ")
+      }
       
       const data = await res.json()
-      setSale(data)
-      // Initialize return items structure (default 0 quantity to return)
-      setReturnItems(data.items.map((item: any) => ({
+      const returnableRes = await fetch(`/api/sales/${data.id}/returnable`)
+      if (!returnableRes.ok) {
+        const err = await returnableRes.json().catch(() => null)
+        throw new Error(err?.error || "ไม่สามารถโหลดจำนวนสินค้าที่คืนได้")
+      }
+
+      const returnablePayload = await returnableRes.json()
+      const returnable = returnablePayload.data
+      setSale(returnable.sale)
+      setReturnItems(returnable.items.map((item: any) => ({
         ...item,
+        quantity: item.qtyOriginal,
         returnQty: 0,
         restock: true
       })))
+      if (returnable.items.length === 0) {
+        setError("บิลนี้ไม่มีสินค้าที่คืนได้แล้ว")
+      }
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -57,8 +71,8 @@ export function CreateReturnClient({ currentUserId }: { currentUserId: number })
     const num = parseFloat(qty) || 0
     setReturnItems(prev => prev.map(item => {
       if (item.id === itemId) {
-        // limit to max purchased qty
-        const val = Math.min(Math.max(0, num), item.quantity)
+        const maxReturnable = item.qtyReturnable ?? item.quantity
+        const val = Math.min(Math.max(0, num), maxReturnable)
         return { ...item, returnQty: val }
       }
       return item
@@ -102,6 +116,8 @@ export function CreateReturnClient({ currentUserId }: { currentUserId: number })
           items: itemsToReturn.map(item => ({
             productId: item.productId,
             productUnitId: item.productUnitId,
+            customName: item.customName || null,
+            customUnitName: item.customUnitName || null,
             quantity: item.returnQty,
             quantityBase: item.returnQty * item.productUnit.conversionRate,
             restock: item.restock,
@@ -198,7 +214,7 @@ export function CreateReturnClient({ currentUserId }: { currentUserId: number })
                 <thead>
                   <tr>
                     <th>รายการสินค้า</th>
-                    <th className="text-center">ซื้อไป</th>
+                    <th className="text-center">ซื้อไป / คืนได้</th>
                     <th className="text-center w-32">จำนวนที่คืน</th>
                     <th className="text-center">คืนเข้าสต็อก?</th>
                     <th className="text-right">ยอดคืน (บาท)</th>
@@ -208,13 +224,14 @@ export function CreateReturnClient({ currentUserId }: { currentUserId: number })
                   {returnItems.map(item => (
                     <tr key={item.id} className={item.returnQty > 0 ? "bg-blue-50/50" : ""}>
                       <td className="px-3 py-2">
-                        <p className="font-semibold text-slate-800">{item.product.name}</p>
+                        <p className="font-semibold text-slate-800">{item.customName || item.product.name}</p>
                         <p className="text-xs text-slate-500">
-                          ราคา: {formatBaht(item.unitPrice)} / {item.productUnit.unit.name}
+                          ราคา: {formatBaht(item.unitPrice)} / {item.customUnitName || item.productUnit.unit.name}
                         </p>
                       </td>
                       <td className="px-3 py-2 text-center text-slate-600 font-medium">
-                        {item.quantity}
+                        <div>{item.quantity}</div>
+                        <div className="text-xs text-emerald-600">{item.qtyReturnable ?? item.quantity}</div>
                       </td>
                       <td className="px-3 py-2">
                         <input
@@ -223,7 +240,7 @@ export function CreateReturnClient({ currentUserId }: { currentUserId: number })
                           onChange={(e) => updateReturnQty(item.id, e.target.value)}
                           className="input text-center font-semibold"
                           min="0"
-                          max={item.quantity}
+                          max={item.qtyReturnable ?? item.quantity}
                         />
                       </td>
                       <td className="px-3 py-2 text-center">

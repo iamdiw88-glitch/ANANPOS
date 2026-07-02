@@ -7,8 +7,9 @@ import { PaymentClient } from "@/components/ar/payment-client"
 export default async function NewPaymentPage({
   searchParams
 }: {
-  searchParams: { customerId?: string, invoiceId?: string }
+  searchParams: Promise<{ customerId?: string, invoiceId?: string }>
 }) {
+  const params = await searchParams
   const session = await auth()
   if (!session?.user?.id) redirect("/login")
 
@@ -27,8 +28,8 @@ export default async function NewPaymentPage({
     }
   })
 
-  const defaultCustomerId = searchParams.customerId ? parseInt(searchParams.customerId) : undefined
-  const defaultInvoiceId = searchParams.invoiceId ? parseInt(searchParams.invoiceId) : undefined
+  const defaultCustomerId = params.customerId ? parseInt(params.customerId) : undefined
+  const defaultInvoiceId = params.invoiceId ? parseInt(params.invoiceId) : undefined
 
   // Make sure the default customer is included even if balance is 0
   if (defaultCustomerId && !customers.find(c => c.id === defaultCustomerId)) {

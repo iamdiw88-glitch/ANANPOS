@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { ApiError, apiErrorResponse, parseJsonBody, requireApiSession } from "@/lib/api"
+import { ApiError, apiErrorResponse, parseJsonBody, requireApiPermission, requireApiSession } from "@/lib/api"
+
+const optionalMoneySchema = z.preprocess(
+  (value) => value === "" || value === undefined ? null : value,
+  z.coerce.number().min(0).nullable()
+)
 
 const productUnitSchema = z.object({
   unitId: z.coerce.number().int().positive(),
   conversionRate: z.coerce.number().positive(),
   price: z.coerce.number().min(0),
-  contractorPrice: z.coerce.number().min(0).nullable().optional(),
+  contractorPrice: optionalMoneySchema,
   barcode: z.string().trim().nullable().optional(),
   isDefaultSale: z.coerce.boolean().default(false),
 })
@@ -15,9 +20,11 @@ const productUnitSchema = z.object({
 const productSchema = z.object({
   code: z.string().trim().min(1, "กรุณาระบุรหัสสินค้า"),
   name: z.string().trim().min(1, "กรุณาระบุชื่อสินค้า"),
+  searchTags: z.string().trim().nullable().optional(),
   categoryId: z.coerce.number().int().positive(),
   baseUnitId: z.coerce.number().int().positive(),
   reorderPoint: z.coerce.number().min(0).default(0),
+  stockQuantity: z.coerce.number().min(0).default(0),
   isStockItem: z.coerce.boolean().default(true),
   productUnits: z.array(productUnitSchema).min(1, "กรุณาเพิ่มหน่วยขายอย่างน้อย 1 หน่วย"),
 })
@@ -57,7 +64,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    await requireApiSession(["OWNER", "STAFF"])
+    const { userId } = await requireApiPermission("product:manage")
     const data = await parseJsonBody(request, productSchema)
     validateProductUnits(data.productUnits)
 
@@ -65,10 +72,11 @@ export async function POST(request: Request) {
     if (exists) throw new ApiError("รหัสสินค้านี้มีอยู่ในระบบแล้ว", 400)
 
     const product = await prisma.$transaction(async (tx) => {
-      return tx.product.create({
+      const product = await tx.product.create({
         data: {
           code: data.code,
           name: data.name,
+          searchTags: data.searchTags || null,
           categoryId: data.categoryId,
           baseUnitId: data.baseUnitId,
           reorderPoint: data.reorderPoint,
@@ -84,10 +92,25 @@ export async function POST(request: Request) {
               isActive: true,
             })),
           },
-          ...(data.isStockItem ? { stockBalance: { create: { quantityOnHand: 0 } } } : {}),
+          ...(data.isStockItem ? { stockBalance: { create: { quantityOnHand: data.stockQuantity } } } : {}),
         },
         include: { productUnits: true, stockBalance: true },
       })
+
+      if (data.isStockItem && data.stockQuantity > 0) {
+        await tx.stockMovement.create({
+          data: {
+            productId: product.id,
+            movementType: "ADJUST",
+            quantityBase: data.stockQuantity,
+            refType: "ADJUSTMENT",
+            note: "Initial stock from product form",
+            createdById: userId,
+          },
+        })
+      }
+
+      return product
     })
 
     return NextResponse.json({ success: true, data: product })
@@ -95,4 +118,3 @@ export async function POST(request: Request) {
     return apiErrorResponse(error, "Failed to create product")
   }
 }
-

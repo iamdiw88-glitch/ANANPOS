@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server"
+import type { Prisma } from "@prisma/client"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { ApiError, apiErrorResponse, parseJsonBody, requireApiSession } from "@/lib/api"
+import { ApiError, apiErrorResponse, parseJsonBody, requireApiPermission, parsePositiveId } from "@/lib/api"
 import { lockDocumentSeries, nextSequenceFrom, yymmdd } from "@/lib/document-number"
 
 const returnItemSchema = z.object({
   productId: z.coerce.number().int().positive(),
   productUnitId: z.coerce.number().int().positive(),
+  customName: z.string().trim().max(120).nullable().optional(),
+  customUnitName: z.string().trim().max(40).nullable().optional(),
   quantity: z.coerce.number().positive(),
   restock: z.coerce.boolean(),
 })
@@ -21,21 +24,61 @@ const returnSchema = z.object({
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100
 
-function nextInvoiceStatus(totalAmount: number, paidAmount: number) {
-  if (paidAmount >= totalAmount) return "PAID"
-  if (paidAmount > 0) return "PARTIAL"
-  return "OPEN"
-}
+export async function GET(request: Request) {
+  try {
+    await requireApiPermission("return:view")
 
-function nextSaleStatus(grandTotal: number, paidAmount: number) {
-  if (paidAmount >= grandTotal) return "PAID"
-  if (paidAmount > 0) return "PARTIAL"
-  return "UNPAID"
+    const { searchParams } = new URL(request.url)
+    const saleId = searchParams.get("saleId")
+    const dateFrom = searchParams.get("dateFrom")
+    const dateTo = searchParams.get("dateTo")
+
+    const where: Prisma.ReturnWhereInput = {}
+    if (saleId) where.originalSaleId = parsePositiveId(saleId, "sale ID")
+    if (dateFrom || dateTo) {
+      const parsedDateFrom = dateFrom ? new Date(dateFrom) : null
+      const parsedDateTo = dateTo ? new Date(dateTo) : null
+      if (parsedDateFrom && Number.isNaN(parsedDateFrom.getTime())) {
+        throw new ApiError("Invalid dateFrom", 400)
+      }
+      if (parsedDateTo && Number.isNaN(parsedDateTo.getTime())) {
+        throw new ApiError("Invalid dateTo", 400)
+      }
+      where.returnDate = {
+        ...(parsedDateFrom ? { gte: parsedDateFrom } : {}),
+        ...(parsedDateTo ? { lte: parsedDateTo } : {}),
+      }
+    }
+
+    const returns = await prisma.return.findMany({
+      where,
+      orderBy: { returnDate: "desc" },
+      include: {
+        customer: true,
+        originalSale: true,
+        createdBy: {
+          select: { id: true, name: true, role: true },
+        },
+        items: {
+          include: {
+            product: true,
+            productUnit: {
+              include: { unit: true },
+            },
+          },
+        },
+      },
+    })
+
+    return NextResponse.json({ success: true, data: returns })
+  } catch (error) {
+    return apiErrorResponse(error, "Failed to fetch returns")
+  }
 }
 
 export async function POST(request: Request) {
   try {
-    const { userId } = await requireApiSession()
+    const { userId } = await requireApiPermission("return:create")
     const data = await parseJsonBody(request, returnSchema)
 
     const returnRec = await prisma.$transaction(async (tx) => {
@@ -48,9 +91,6 @@ export async function POST(request: Request) {
               productUnit: true,
             },
           },
-          invoiceSales: {
-            include: { invoice: true },
-          },
         },
       })
 
@@ -60,14 +100,30 @@ export async function POST(request: Request) {
         throw new ApiError("Credit Note ต้องใช้กับบิลที่มีข้อมูลลูกค้า", 400)
       }
 
-      const soldByProductUnit = new Map<string, { quantity: number; unitPrice: number; conversionRate: number; product: typeof sale.items[number]["product"] }>()
+      const getReturnItemKey = (item: {
+        productId: number
+        productUnitId: number
+        customName?: string | null
+        customUnitName?: string | null
+      }) => `${item.productId}:${item.productUnitId}:${item.customName || ""}:${item.customUnitName || ""}`
+
+      const soldByProductUnit = new Map<string, {
+        quantity: number
+        unitPrice: number
+        conversionRate: number
+        customName: string | null
+        customUnitName: string | null
+        product: typeof sale.items[number]["product"]
+      }>()
       for (const item of sale.items) {
-        const key = `${item.productId}:${item.productUnitId}`
+        const key = getReturnItemKey(item)
         const current = soldByProductUnit.get(key)
         soldByProductUnit.set(key, {
           quantity: (current?.quantity || 0) + item.quantity,
           unitPrice: item.unitPrice,
           conversionRate: item.productUnit.conversionRate,
+          customName: item.customName,
+          customUnitName: item.customUnitName,
           product: item.product,
         })
       }
@@ -79,13 +135,13 @@ export async function POST(request: Request) {
       const returnedByProductUnit = new Map<string, number>()
       for (const previousReturn of previousReturns) {
         for (const item of previousReturn.items) {
-          const key = `${item.productId}:${item.productUnitId}`
+          const key = getReturnItemKey(item)
           returnedByProductUnit.set(key, (returnedByProductUnit.get(key) || 0) + item.quantity)
         }
       }
 
       const items = data.items.map((item) => {
-        const key = `${item.productId}:${item.productUnitId}`
+        const key = getReturnItemKey(item)
         const sold = soldByProductUnit.get(key)
         if (!sold) throw new ApiError("พบรายการรับคืนที่ไม่อยู่ในบิลขายเดิม", 400)
 
@@ -101,6 +157,8 @@ export async function POST(request: Request) {
         return {
           productId: item.productId,
           productUnitId: item.productUnitId,
+          customName: sold.customName,
+          customUnitName: sold.customUnitName,
           quantity: item.quantity,
           quantityBase,
           restock: item.restock,
@@ -112,6 +170,15 @@ export async function POST(request: Request) {
 
       const totalRefund = roundMoney(items.reduce((sum, item) => sum + item.lineTotal, 0))
       if (totalRefund <= 0) throw new ApiError("ยอดรับคืนไม่ถูกต้อง", 400)
+      if (data.refundMethod === "CASH" && totalRefund > sale.paidAmount + 0.01) {
+        throw new ApiError("ยอดคืนเงินสดมากกว่ายอดที่รับชำระแล้ว", 400)
+      }
+      if (data.refundMethod === "CREDIT_NOTE") {
+        const remainingSaleBalance = roundMoney(Math.max(0, sale.grandTotal - sale.paidAmount))
+        if (totalRefund > remainingSaleBalance + 0.01) {
+          throw new ApiError("ยอดลดหนี้มากกว่ายอดค้างชำระของบิลนี้", 400)
+        }
+      }
 
       const todayStr = yymmdd()
       const prefix = `RT${todayStr}`
@@ -137,6 +204,8 @@ export async function POST(request: Request) {
             create: items.map((item) => ({
               productId: item.productId,
               productUnitId: item.productUnitId,
+              customName: item.customName,
+              customUnitName: item.customUnitName,
               quantity: item.quantity,
               quantityBase: item.quantityBase,
               restock: item.restock,
@@ -169,49 +238,6 @@ export async function POST(request: Request) {
         })
       }
 
-      if (data.refundMethod === "CREDIT_NOTE" && sale.customerId) {
-        const remainingSaleBalance = Math.max(0, sale.grandTotal - sale.paidAmount)
-        const creditAmount = Math.min(totalRefund, remainingSaleBalance)
-
-        if (creditAmount > 0) {
-          const newPaidAmount = roundMoney(sale.paidAmount + creditAmount)
-          await tx.sale.update({
-            where: { id: sale.id },
-            data: {
-              paidAmount: newPaidAmount,
-              status: nextSaleStatus(sale.grandTotal, newPaidAmount),
-            },
-          })
-
-          await tx.customer.update({
-            where: { id: sale.customerId },
-            data: { balance: { decrement: creditAmount } },
-          })
-
-          let remainingCredit = creditAmount
-          for (const link of sale.invoiceSales) {
-            if (remainingCredit <= 0) break
-            const allocation = Math.min(remainingCredit, link.amount)
-            const newInvoiceTotal = roundMoney(link.invoice.totalAmount - allocation)
-            const newInvoiceBalance = roundMoney(Math.max(0, link.invoice.balance - allocation))
-
-            await tx.invoiceSale.update({
-              where: { invoiceId_saleId: { invoiceId: link.invoiceId, saleId: link.saleId } },
-              data: { amount: roundMoney(link.amount - allocation) },
-            })
-            await tx.invoice.update({
-              where: { id: link.invoiceId },
-              data: {
-                totalAmount: newInvoiceTotal,
-                balance: newInvoiceBalance,
-                status: nextInvoiceStatus(newInvoiceTotal, link.invoice.paidAmount),
-              },
-            })
-            remainingCredit = roundMoney(remainingCredit - allocation)
-          }
-        }
-      }
-
       return r
     })
 
@@ -220,4 +246,3 @@ export async function POST(request: Request) {
     return apiErrorResponse(error, "Failed to create return")
   }
 }
-

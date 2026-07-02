@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { apiErrorResponse, parseJsonBody, requireApiSession } from "@/lib/api"
+import { apiErrorResponse, parseJsonBody, requireApiPermission, requireApiSession } from "@/lib/api"
 
 const settingsSchema = z.union([
   z.record(z.union([z.string(), z.number(), z.boolean(), z.null()])),
@@ -38,7 +38,7 @@ export async function GET() {
 }
 
 async function saveSettings(request: Request) {
-  await requireApiSession(["OWNER"])
+  await requireApiPermission("settings:manage")
   const body = await parseJsonBody(request, settingsSchema)
   const data = normalizeSettings(body)
 

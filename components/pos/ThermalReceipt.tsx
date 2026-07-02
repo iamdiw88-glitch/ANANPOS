@@ -33,16 +33,21 @@ export function ThermalReceipt({ sale }: ThermalReceiptProps) {
           </tr>
         </thead>
         <tbody>
-          {sale.items?.map((item: any) => (
+          {sale.items?.map((item: any) => {
+            const itemName = item.customName || item.product.name
+            const unitName = item.customUnitName || item.productUnit?.unit?.name
+
+            return (
             <tr key={item.id}>
               <td className="py-1">
-                <div className="line-clamp-1">{item.product.name}</div>
-                <div className="text-[10px] text-gray-500">@{item.unitPrice.toFixed(2)}/{item.productUnit?.unit?.name}</div>
+                <div className="line-clamp-1">{itemName}</div>
+                <div className="text-[10px] text-gray-500">@{item.unitPrice.toFixed(2)}/{unitName}</div>
               </td>
               <td className="text-right py-1 align-top">{item.quantity}</td>
               <td className="text-right py-1 align-top">{item.lineTotal.toFixed(2)}</td>
             </tr>
-          ))}
+            )
+          })}
         </tbody>
       </table>
 

@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/prisma"
+import { auth } from "@/lib/auth"
+import { hasPermission } from "@/lib/permissions"
+import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Plus, RotateCcw } from "lucide-react"
 import { PageHeader } from "@/components/ui/page-header"
@@ -10,6 +13,10 @@ import { EmptyState } from "@/components/ui/empty-state"
 export const dynamic = "force-dynamic"
 
 export default async function ReturnsPage() {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+  if (!hasPermission(session.user.role, "return:view")) redirect("/pos")
+
   const returns = await prisma.return.findMany({
     orderBy: { returnDate: 'desc' },
     include: {

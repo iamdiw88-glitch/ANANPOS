@@ -56,7 +56,7 @@ export function LoginClient({ users }: { users: User[] }) {
         router.push("/dashboard")
         router.refresh()
       }
-    } catch (e) {
+    } catch {
       setError(true)
       setPin("")
     } finally {

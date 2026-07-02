@@ -12,8 +12,17 @@ export function SettingsClient({ initialUsers, initialUnits, initialSettings }: 
   const [activeTab, setActiveTab] = useState("info")
   const [settings, setSettings] = useState(initialSettings)
   const [users, setUsers] = useState(initialUsers)
-  const [units, setUnits] = useState(initialUnits)
+  const [units] = useState(initialUnits)
   const [isSaving, setIsSaving] = useState(false)
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState<any | null>(null)
+  const [userForm, setUserForm] = useState({
+    name: "",
+    role: "CASHIER",
+    pin: "1234",
+    isActive: true,
+  })
+  const [isSavingUser, setIsSavingUser] = useState(false)
 
   // Handlers for Info
   const handleSettingChange = (key: string, value: string) => {
@@ -39,6 +48,68 @@ export function SettingsClient({ initialUsers, initialUnits, initialSettings }: 
 
   const handleBackup = () => {
     window.location.href = "/api/settings/backup"
+  }
+
+  const openCreateUser = () => {
+    setEditingUser(null)
+    setUserForm({ name: "", role: "CASHIER", pin: "1234", isActive: true })
+    setIsUserModalOpen(true)
+  }
+
+  const openEditUser = (user: any) => {
+    setEditingUser(user)
+    setUserForm({
+      name: user.name,
+      role: user.role,
+      pin: "",
+      isActive: user.isActive,
+    })
+    setIsUserModalOpen(true)
+  }
+
+  const saveUser = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setIsSavingUser(true)
+    try {
+      const url = editingUser ? `/api/users/${editingUser.id}` : "/api/users"
+      const method = editingUser ? "PUT" : "POST"
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userForm),
+      })
+      const json = await res.json().catch(() => null)
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || "บันทึกผู้ใช้งานไม่สำเร็จ")
+      }
+
+      setUsers((prev: any[]) => (
+        editingUser
+          ? prev.map((user) => user.id === json.data.id ? json.data : user)
+          : [...prev, json.data]
+      ))
+      setIsUserModalOpen(false)
+    } catch (e: any) {
+      alert(e.message)
+    } finally {
+      setIsSavingUser(false)
+    }
+  }
+
+  const deleteUser = async (user: any) => {
+    const ok = confirm(`ต้องการปิดใช้งานผู้ใช้ "${user.name}" หรือไม่?`)
+    if (!ok) return
+
+    try {
+      const res = await fetch(`/api/users/${user.id}`, { method: "DELETE" })
+      const json = await res.json().catch(() => null)
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || "ปิดใช้งานผู้ใช้ไม่สำเร็จ")
+      }
+      setUsers((prev: any[]) => prev.map((u) => u.id === json.data.id ? json.data : u))
+    } catch (e: any) {
+      alert(e.message)
+    }
   }
 
   const tabs = [
@@ -151,7 +222,7 @@ export function SettingsClient({ initialUsers, initialUnits, initialSettings }: 
           <div className="p-4 flex flex-col h-full overflow-hidden">
             <div className="flex justify-between items-center mb-3">
               <h2 className="text-base font-bold text-slate-800">จัดการผู้ใช้งาน (Users)</h2>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={openCreateUser}>
                 <Plus className="w-4 h-4" /> เพิ่มพนักงาน
               </Button>
             </div>
@@ -183,8 +254,8 @@ export function SettingsClient({ initialUsers, initialUnits, initialSettings }: 
                       </TD>
                       <TD className="text-center">
                         <div className="flex gap-1 justify-center">
-                          <Button variant="ghost" size="icon" className="text-primary"><Edit2 className="w-4 h-4" /></Button>
-                          <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="w-4 h-4" /></Button>
+                          <Button variant="ghost" size="icon" className="text-primary" onClick={() => openEditUser(u)}><Edit2 className="w-4 h-4" /></Button>
+                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteUser(u)} disabled={!u.isActive}><Trash2 className="w-4 h-4" /></Button>
                         </div>
                       </TD>
                     </TR>
@@ -273,6 +344,70 @@ export function SettingsClient({ initialUsers, initialUnits, initialSettings }: 
           </div>
         )}
       </div>
+
+      {isUserModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <form onSubmit={saveUser} className="bg-white rounded-lg shadow-xl border border-border w-full max-w-md">
+            <div className="px-4 py-3 border-b border-border">
+              <h3 className="text-base font-bold text-slate-800">
+                {editingUser ? "แก้ไขผู้ใช้งาน" : "เพิ่มผู้ใช้งาน"}
+              </h3>
+            </div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">ชื่อผู้ใช้งาน</label>
+                <Input
+                  value={userForm.name}
+                  onChange={(e) => setUserForm((prev) => ({ ...prev, name: e.target.value }))}
+                  required
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">ตำแหน่ง</label>
+                <Select
+                  value={userForm.role}
+                  onChange={(e) => setUserForm((prev) => ({ ...prev, role: e.target.value }))}
+                >
+                  <option value="OWNER">OWNER</option>
+                  <option value="STAFF">STAFF</option>
+                  <option value="CASHIER">CASHIER</option>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  PIN {editingUser ? "(เว้นว่างถ้าไม่เปลี่ยน)" : ""}
+                </label>
+                <Input
+                  value={userForm.pin}
+                  onChange={(e) => setUserForm((prev) => ({ ...prev, pin: e.target.value }))}
+                  inputMode="numeric"
+                  pattern="[0-9]{4,6}"
+                  required={!editingUser}
+                  placeholder={editingUser ? "เว้นว่างถ้าไม่เปลี่ยน" : "1234"}
+                />
+              </div>
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={userForm.isActive}
+                  onChange={(e) => setUserForm((prev) => ({ ...prev, isActive: e.target.checked }))}
+                  className="w-4 h-4"
+                />
+                เปิดใช้งาน
+              </label>
+            </div>
+            <div className="px-4 py-3 border-t border-border flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setIsUserModalOpen(false)}>
+                ยกเลิก
+              </Button>
+              <Button type="submit" disabled={isSavingUser}>
+                {isSavingUser ? "กำลังบันทึก..." : "บันทึก"}
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   )
 }

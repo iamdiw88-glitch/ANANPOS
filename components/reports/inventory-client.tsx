@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Search, Download, Printer, AlertTriangle, Package, Wallet } from "lucide-react"
+import { Search, Download, AlertTriangle, Package, Wallet } from "lucide-react"
 import { StatCard } from "@/components/ui/stat-card"
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"

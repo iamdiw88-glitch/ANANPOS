@@ -10,15 +10,18 @@ type ProductUnitForm = {
   unitId: number | string
   conversionRate: number
   price: number
+  contractorPrice: number | string
   isDefaultSale: boolean
 }
 
 type ProductFormState = {
   code: string
   name: string
+  searchTags: string
   categoryId: number | string
   baseUnitId: number | string
   reorderPoint: number
+  stockQuantity: number
   isStockItem: boolean
   productUnits: ProductUnitForm[]
 }
@@ -26,18 +29,28 @@ type ProductFormState = {
 export function ProductForm({ initialData, categories, units }: { initialData?: any, categories: any[], units: any[] }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [stockQuantityTouched, setStockQuantityTouched] = useState(!initialData)
+  const hasStockHistory = !!initialData && (
+    (initialData._count?.stockMovements ?? 0) > 0 ||
+    (initialData._count?.saleItems ?? 0) > 0 ||
+    (initialData._count?.purchaseItems ?? 0) > 0 ||
+    (initialData._count?.returnItems ?? 0) > 0
+  )
   const [formData, setFormData] = useState<ProductFormState>({
     code: initialData?.code || "",
     name: initialData?.name || "",
+    searchTags: initialData?.searchTags || "",
     categoryId: initialData?.categoryId || categories[0]?.id || "",
     baseUnitId: initialData?.baseUnitId || units[0]?.id || "",
     reorderPoint: initialData?.reorderPoint || 0,
+    stockQuantity: initialData?.stockBalance?.quantityOnHand ?? 0,
     isStockItem: initialData !== undefined ? initialData.isStockItem : true,
     productUnits: initialData?.productUnits?.map((pu: any) => ({
       id: pu.id,
       unitId: pu.unitId,
       conversionRate: pu.conversionRate,
       price: pu.price,
+      contractorPrice: pu.contractorPrice ?? "",
       isDefaultSale: pu.isDefaultSale
     })) || []
   })
@@ -47,7 +60,7 @@ export function ProductForm({ initialData, categories, units }: { initialData?: 
       ...prev,
       productUnits: [
         ...prev.productUnits,
-        { unitId: units[0]?.id || "", conversionRate: 1, price: 0, isDefaultSale: prev.productUnits.length === 0 }
+        { unitId: units[0]?.id || "", conversionRate: 1, price: 0, contractorPrice: "", isDefaultSale: prev.productUnits.length === 0 }
       ]
     }))
   }
@@ -82,10 +95,17 @@ export function ProductForm({ initialData, categories, units }: { initialData?: 
       const url = initialData ? `/api/products/${initialData.id}` : '/api/products'
       const method = initialData ? 'PUT' : 'POST'
       
+      const payload = {
+        ...formData,
+        stockQuantity: formData.isStockItem && (!initialData || stockQuantityTouched)
+          ? formData.stockQuantity
+          : null,
+      }
+
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       })
       
       const data = await res.json()
@@ -95,7 +115,7 @@ export function ProductForm({ initialData, categories, units }: { initialData?: 
       } else {
         alert(data.error || 'Something went wrong')
       }
-    } catch (error) {
+    } catch {
       alert('Error saving product')
     } finally {
       setLoading(false)
@@ -118,6 +138,16 @@ export function ProductForm({ initialData, categories, units }: { initialData?: 
           <label className="block text-sm font-medium mb-1">ชื่อสินค้า</label>
           <input required type="text" className="w-full border rounded-md p-2" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
         </div>
+        <div className="col-span-2">
+          <label className="block text-sm font-medium mb-1">คำค้นหาเพิ่มเติม</label>
+          <input
+            type="text"
+            className="w-full border rounded-md p-2"
+            value={formData.searchTags}
+            onChange={e => setFormData({...formData, searchTags: e.target.value})}
+            placeholder="เช่น ชื่อเล่นสินค้า, คำย่อ, รุ่น, ขนาด"
+          />
+        </div>
         <div>
           <label className="block text-sm font-medium mb-1">หมวดหมู่</label>
           <select required className="w-full border rounded-md p-2" value={formData.categoryId} onChange={e => setFormData({...formData, categoryId: Number(e.target.value)})}>
@@ -126,17 +156,36 @@ export function ProductForm({ initialData, categories, units }: { initialData?: 
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">หน่วยฐาน (Base Unit)</label>
-          <select required className="w-full border rounded-md p-2" value={formData.baseUnitId} onChange={e => setFormData({...formData, baseUnitId: Number(e.target.value)})}>
+          <select required disabled={hasStockHistory} className="w-full border rounded-md p-2 disabled:bg-slate-100 disabled:text-slate-500" value={formData.baseUnitId} onChange={e => setFormData({...formData, baseUnitId: Number(e.target.value)})}>
             {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
           </select>
+          {hasStockHistory && (
+            <p className="mt-1 text-xs text-amber-700">สินค้ามีประวัติแล้ว จึงล็อกหน่วยฐานเพื่อป้องกันสต็อกคลาดเคลื่อน</p>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">จุดสั่งซื้อ (Reorder Point)</label>
           <input type="number" min="0" step="0.01" className="w-full border rounded-md p-2" value={formData.reorderPoint} onChange={e => setFormData({...formData, reorderPoint: Number(e.target.value)})} />
         </div>
+        {formData.isStockItem && (
+          <div>
+            <label className="block text-sm font-medium mb-1">จำนวนสต็อกปัจจุบัน ({units.find(u => u.id === Number(formData.baseUnitId))?.name || "หน่วยฐาน"})</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              className="w-full border rounded-md p-2"
+              value={formData.stockQuantity}
+              onChange={e => {
+                setStockQuantityTouched(true)
+                setFormData({...formData, stockQuantity: Number(e.target.value)})
+              }}
+            />
+          </div>
+        )}
         <div className="flex items-center mt-6">
           <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" className="w-5 h-5 rounded" checked={formData.isStockItem} onChange={e => setFormData({...formData, isStockItem: e.target.checked})} />
+            <input type="checkbox" disabled={hasStockHistory} className="w-5 h-5 rounded disabled:opacity-50" checked={formData.isStockItem} onChange={e => setFormData({...formData, isStockItem: e.target.checked})} />
             <span className="font-medium">เป็นสินค้าตัดสต็อก (มีจำนวน)</span>
           </label>
         </div>
@@ -155,7 +204,8 @@ export function ProductForm({ initialData, categories, units }: { initialData?: 
             <tr>
               <th className="p-2 text-left">หน่วย</th>
               <th className="p-2 text-left">อัตราส่วน (ต่อหน่วยฐาน)</th>
-              <th className="p-2 text-left">ราคาขาย (บาท)</th>
+              <th className="p-2 text-left">ราคาปลีก (บาท)</th>
+              <th className="p-2 text-left">ราคาช่าง (บาท)</th>
               <th className="p-2 text-center">ค่าเริ่มต้นขาย</th>
               <th className="p-2"></th>
             </tr>
@@ -169,10 +219,29 @@ export function ProductForm({ initialData, categories, units }: { initialData?: 
                   </select>
                 </td>
                 <td className="p-2">
-                  <input type="number" step="0.01" min="0.01" className="w-full border rounded p-1" value={pu.conversionRate} onChange={e => updateUnit(i, 'conversionRate', Number(e.target.value))} />
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    disabled={hasStockHistory && !!pu.id}
+                    className="w-full border rounded p-1 disabled:bg-slate-100 disabled:text-slate-500"
+                    value={pu.conversionRate}
+                    onChange={e => updateUnit(i, 'conversionRate', Number(e.target.value))}
+                  />
                 </td>
                 <td className="p-2">
                   <input type="number" step="0.01" min="0" className="w-full border rounded p-1" value={pu.price} onChange={e => updateUnit(i, 'price', Number(e.target.value))} />
+                </td>
+                <td className="p-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="w-full border rounded p-1"
+                    value={pu.contractorPrice}
+                    onChange={e => updateUnit(i, 'contractorPrice', e.target.value === "" ? "" : Number(e.target.value))}
+                    placeholder="ไม่กำหนด"
+                  />
                 </td>
                 <td className="p-2 text-center">
                   <input type="radio" name="isDefaultSale" checked={pu.isDefaultSale} onChange={() => updateUnit(i, 'isDefaultSale', true)} />
@@ -185,7 +254,7 @@ export function ProductForm({ initialData, categories, units }: { initialData?: 
               </tr>
             ))}
             {formData.productUnits.length === 0 && (
-              <tr><td colSpan={5} className="text-center p-4 text-slate-500">ยังไม่มีหน่วยขาย กรุณาเพิ่มอย่างน้อย 1 หน่วย</td></tr>
+              <tr><td colSpan={6} className="text-center p-4 text-slate-500">ยังไม่มีหน่วยขาย กรุณาเพิ่มอย่างน้อย 1 หน่วย</td></tr>
             )}
           </tbody>
         </table>

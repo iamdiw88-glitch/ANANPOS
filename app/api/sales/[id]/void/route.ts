@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { ApiError, apiErrorResponse, parseJsonBody, parsePositiveId, requireApiSession } from "@/lib/api"
+import { ApiError, apiErrorResponse, parseJsonBody, parsePositiveId, requireApiPermission } from "@/lib/api"
 
 const voidSchema = z.object({
   reason: z.string().trim().optional(),
@@ -15,7 +15,7 @@ function nextInvoiceStatus(totalAmount: number, paidAmount: number) {
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { userId } = await requireApiSession(["OWNER", "STAFF"])
+    const { userId } = await requireApiPermission("sale:void")
     const { id } = await params
     const saleId = parsePositiveId(id, "sale ID")
     const body = await parseJsonBody(req, voidSchema)
@@ -103,4 +103,3 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return apiErrorResponse(error, "Failed to void sale")
   }
 }
-

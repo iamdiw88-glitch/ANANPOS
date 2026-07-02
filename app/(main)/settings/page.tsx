@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/prisma"
+import { auth } from "@/lib/auth"
+import { hasPermission } from "@/lib/permissions"
+import { redirect } from "next/navigation"
 import { SettingsClient } from "@/components/settings/settings-client"
 import { PageHeader } from "@/components/ui/page-header"
 
@@ -6,6 +9,10 @@ import { PageHeader } from "@/components/ui/page-header"
 export const dynamic = "force-dynamic"
 
 export default async function SettingsPage() {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+  if (!hasPermission(session.user.role, "settings:manage")) redirect("/pos")
+
   const users = await prisma.user.findMany({
     orderBy: { createdAt: "asc" }
   })

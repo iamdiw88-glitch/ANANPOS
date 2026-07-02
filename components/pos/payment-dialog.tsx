@@ -1,7 +1,9 @@
 "use client"
 
-import { useState } from "react"
-import { X, Receipt, FileText } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { X, Receipt, FileText, Truck } from "lucide-react"
+import { DeliveryAddressPicker } from "./delivery-address-picker"
+import type { DeliveryAddress } from "@/lib/data/therd-subdistricts"
 
 const formatBaht = (amount: number) => {
   return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
@@ -9,9 +11,11 @@ const formatBaht = (amount: number) => {
 
 export function PaymentDialog({ 
   cart, 
-  customer, 
+  customer,
+  customers = [],
   subtotal, 
   discount, 
+  roundingDiscountEnabled = false,
   vatAmount, 
   grandTotal, 
   onClose, 
@@ -21,6 +25,144 @@ export function PaymentDialog({
   const [docType, setDocType] = useState<'RECEIPT' | 'TAX_INVOICE'>('RECEIPT')
   const [receivedAmount, setReceivedAmount] = useState<string>("")
   const [loading, setLoading] = useState(false)
+  const [deliveryEnabled, setDeliveryEnabled] = useState(false)
+  const [deliveryAddress, setDeliveryAddress] = useState<DeliveryAddress | null>(null)
+  const [deliveryCustomers, setDeliveryCustomers] = useState<any[]>([])
+  const [selectedRecipientKey, setSelectedRecipientKey] = useState("")
+  const [deliveryCustomerId, setDeliveryCustomerId] = useState<number | null>(null)
+  const [recipientName, setRecipientName] = useState("")
+  const [recipientPhone, setRecipientPhone] = useState("")
+  const [recipientPhone2, setRecipientPhone2] = useState("")
+  const [deliveryNote, setDeliveryNote] = useState("")
+  const [deliveryIsCOD, setDeliveryIsCOD] = useState(false)
+
+  const normalizePhone = (value: string) => value.replace(/\D/g, "").slice(0, 10)
+
+  const recipientSuggestions = useMemo(() => {
+    const suggestions = [
+      ...deliveryCustomers.map((item) => ({
+        key: `delivery:${item.id}`,
+        source: "delivery",
+        id: item.id,
+        name: item.name || "",
+        phone: item.phone || "",
+        phone2: item.phone2 || "",
+        data: item,
+      })),
+      ...customers.map((item: any) => ({
+        key: `system:${item.id}`,
+        source: "system",
+        id: item.id,
+        name: item.name || "",
+        phone: item.phone || "",
+        phone2: "",
+        data: item,
+      })),
+    ]
+
+    return suggestions.filter((item) => item.name.trim())
+  }, [customers, deliveryCustomers])
+
+  const hydrateAddress = (source: any) => {
+    if (!source) return
+    if (source.deliveryAddress) {
+      setDeliveryAddress({
+        subdistrictId: source.subdistrictId || "",
+        subdistrictName: source.subdistrictName || "",
+        moo: source.moo || 1,
+        villageName: source.villageName || "",
+        landmark: source.landmark || undefined,
+        fullAddress: source.deliveryAddress,
+      } as DeliveryAddress)
+      return
+    }
+    if (source.address) {
+      setDeliveryAddress({
+        subdistrictId: "",
+        subdistrictName: "",
+        moo: 1,
+        villageName: "",
+        fullAddress: source.address,
+      } as DeliveryAddress)
+    }
+  }
+
+  useEffect(() => {
+    if (!deliveryEnabled) return
+    fetch("/api/delivery-customers")
+      .then((res) => res.json())
+      .then((rows) => setDeliveryCustomers(Array.isArray(rows) ? rows : []))
+      .catch(() => setDeliveryCustomers([]))
+  }, [deliveryEnabled])
+
+  useEffect(() => {
+    if (deliveryEnabled && customer) {
+      setRecipientName((current) => current || customer.name || "")
+      setRecipientPhone((current) => current || normalizePhone(customer.phone || ""))
+      hydrateAddress(customer)
+    }
+  }, [customer, deliveryEnabled])
+
+  useEffect(() => {
+    if (deliveryIsCOD && tab === "CREDIT") {
+      setTab("CASH")
+    }
+  }, [deliveryIsCOD, tab])
+
+  const selectRecipient = (key: string) => {
+    setSelectedRecipientKey(key)
+    if (!key) {
+      setDeliveryCustomerId(null)
+      return
+    }
+
+    const [source, id] = key.split(":")
+    if (source === "delivery") {
+      const selected = deliveryCustomers.find((item) => item.id === Number(id))
+      if (!selected) return
+      setDeliveryCustomerId(selected.id)
+      setRecipientName(selected.name || "")
+      setRecipientPhone(normalizePhone(selected.phone || ""))
+      setRecipientPhone2(normalizePhone(selected.phone2 || ""))
+      hydrateAddress(selected)
+      return
+    }
+
+    const selected = customers.find((item: any) => item.id === Number(id))
+    if (!selected) return
+    setDeliveryCustomerId(null)
+    setRecipientName(selected.name || "")
+    setRecipientPhone(normalizePhone(selected.phone || ""))
+    setRecipientPhone2("")
+    hydrateAddress(selected)
+  }
+
+  const handleRecipientNameChange = (name: string) => {
+    setRecipientName(name)
+
+    const normalizedName = name.trim().toLowerCase()
+    const matchedRecipient = recipientSuggestions.find((item) => item.name.trim().toLowerCase() === normalizedName)
+
+    if (!matchedRecipient) {
+      setSelectedRecipientKey("")
+      setDeliveryCustomerId(null)
+      return
+    }
+
+    setSelectedRecipientKey(matchedRecipient.key)
+    if (matchedRecipient.source === "delivery") {
+      setDeliveryCustomerId(matchedRecipient.id)
+      setRecipientPhone(normalizePhone(matchedRecipient.phone))
+      setRecipientPhone2(normalizePhone(matchedRecipient.phone2))
+      hydrateAddress(matchedRecipient.data)
+      return
+    }
+
+    setDeliveryCustomerId(null)
+    setRecipientPhone(normalizePhone(matchedRecipient.phone))
+    setRecipientPhone2("")
+    hydrateAddress(matchedRecipient.data)
+  }
 
   const handleNumpad = (val: string) => {
     if (val === 'C') setReceivedAmount("")
@@ -33,15 +175,56 @@ export function PaymentDialog({
   }
 
   const receivedNum = Number(receivedAmount) || 0
-  const change = tab === 'CASH' && receivedNum >= grandTotal ? receivedNum - grandTotal : 0
+  const isCodSale = deliveryEnabled && deliveryIsCOD
+  const canUseTypedDeliveryCustomer = deliveryEnabled && deliveryIsCOD
+  const change = tab === 'CASH' && !isCodSale && receivedNum >= grandTotal ? receivedNum - grandTotal : 0
+  const pendingAmount = tab === 'CREDIT' ? grandTotal : tab === 'PARTIAL' ? Math.max(0, grandTotal - receivedNum) : 0
+  const creditAmount = isCodSale ? 0 : pendingAmount
+  const isOverCreditLimit = !!customer?.creditLimit && creditAmount > 0 && customer.balance + creditAmount > customer.creditLimit
 
   const handleConfirm = async () => {
-    if (tab === 'CASH' && receivedNum < grandTotal) {
+    if (tab === 'CASH' && !isCodSale && receivedNum < grandTotal) {
       alert("รับเงินไม่พอ!")
       return
     }
-    if ((tab === 'CREDIT' || tab === 'PARTIAL') && !customer) {
+    if (tab === 'CREDIT' && !customer) {
       alert("ต้องเลือกลูกค้าสำหรับการขายเชื่อ!")
+      return
+    }
+    if (tab === 'CREDIT' && isCodSale) {
+      alert("บิลเก็บเงินปลายทางไม่สามารถใช้ประเภทขายเชื่อได้")
+      return
+    }
+    if (tab === 'PARTIAL' && !customer && !canUseTypedDeliveryCustomer) {
+      alert("ต้องเลือกลูกค้าหรือเปิดบิลจัดส่งพร้อมกรอกชื่อผู้รับ")
+      return
+    }
+    if (tab === 'PARTIAL' && receivedNum <= 0) {
+      alert("ยอดชำระบางส่วนต้องมากกว่า 0")
+      return
+    }
+    if (deliveryEnabled && !deliveryAddress) {
+      alert("กรุณาเลือกที่อยู่จัดส่ง")
+      return
+    }
+    if (deliveryEnabled && !recipientName.trim()) {
+      alert("กรุณาระบุชื่อผู้รับของ")
+      return
+    }
+    if (deliveryEnabled && !recipientPhone.trim()) {
+      alert("กรุณาระบุเบอร์ผู้รับของ")
+      return
+    }
+    if (deliveryEnabled && !/^\d{10}$/.test(recipientPhone)) {
+      alert("เบอร์ผู้รับต้องเป็นตัวเลข 10 หลัก")
+      return
+    }
+    if (deliveryEnabled && recipientPhone2 && !/^\d{10}$/.test(recipientPhone2)) {
+      alert("เบอร์สำรองต้องเป็นตัวเลข 10 หลัก")
+      return
+    }
+    if (isOverCreditLimit) {
+      alert("ยอดขายเชื่อนี้เกินวงเงินเครดิตของลูกค้า")
       return
     }
 
@@ -54,14 +237,31 @@ export function PaymentDialog({
           customerId: customer?.id || null,
           subtotal,
           discountAmount: discount,
+          roundingDiscount: roundingDiscountEnabled,
           vatAmount,
           grandTotal,
           paymentType: tab,
-          paidAmount: tab === 'CASH' ? grandTotal : (tab === 'PARTIAL' ? receivedNum : 0),
+          paidAmount: isCodSale && tab === 'CASH' ? 0 : tab === 'CASH' ? grandTotal : (tab === 'PARTIAL' ? receivedNum : 0),
           docType,
+          delivery: deliveryEnabled && deliveryAddress ? {
+            deliveryCustomerId,
+            deliveryAddress: deliveryAddress.fullAddress,
+            recipientName: recipientName.trim() || customer?.name || null,
+            recipientPhone: recipientPhone.trim(),
+            recipientPhone2: recipientPhone2.trim() || null,
+            subdistrictId: deliveryAddress.subdistrictId,
+            subdistrictName: deliveryAddress.subdistrictName,
+            moo: deliveryAddress.moo,
+            villageName: deliveryAddress.villageName,
+            landmark: deliveryAddress.landmark || null,
+            isCOD: deliveryIsCOD,
+            note: deliveryNote.trim() || null,
+          } : null,
           items: cart.map((i: any) => ({
             productId: i.productId,
             productUnitId: i.productUnitId,
+            customName: i.customName || null,
+            customUnitName: i.customUnitName || null,
             quantity: i.quantity,
             quantityBase: i.quantityBase,
             unitPrice: i.unitPrice,
@@ -84,10 +284,10 @@ export function PaymentDialog({
 
   return (
     <div className="modal-overlay">
-      <div className="modal flex w-full max-w-3xl h-[640px]">
+      <div className="modal flex w-full max-w-6xl h-[760px]">
 
         {/* LEFT: Payment Methods */}
-        <div className="w-1/2 border-r border-border flex flex-col bg-slate-50">
+        <div className="w-2/5 border-r border-border flex flex-col bg-slate-50">
           <div className="p-4 border-b border-border bg-white">
             <h2 className="text-lg font-heading font-bold text-slate-800">การชำระเงิน</h2>
           </div>
@@ -101,6 +301,7 @@ export function PaymentDialog({
             </button>
             <button
               onClick={() => setTab('CREDIT')}
+              disabled={isCodSale}
               className={`flex-1 h-11 text-sm font-heading font-bold border-b-2 transition-colors ${tab === 'CREDIT' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-slate-500 hover:bg-slate-100'}`}
             >
               เงินเชื่อ
@@ -114,7 +315,7 @@ export function PaymentDialog({
           </div>
 
           <div className="p-4 flex-1 flex flex-col justify-center overflow-y-auto">
-            {tab === 'CASH' || tab === 'PARTIAL' ? (
+            {(tab === 'PARTIAL' || (tab === 'CASH' && !isCodSale)) ? (
               <div className="space-y-3">
                 <div className="text-center mb-3">
                   <p className="text-sm text-slate-500 font-medium mb-1">ยอดที่ต้องชำระ</p>
@@ -158,6 +359,17 @@ export function PaymentDialog({
                   </button>
                 </div>
               </div>
+            ) : isCodSale ? (
+              <div className="text-center space-y-4">
+                <div className="bg-amber-50 text-amber-800 p-5 rounded-lg border border-amber-200 shadow-sm">
+                  <p className="text-base font-bold mb-1">เก็บเงินปลายทาง</p>
+                  <p className="text-sm">ไม่ต้องกรอกช่องรับเงินตอนทำบิล ยอดนี้จะไปแสดงในหน้าจัดส่ง</p>
+                </div>
+                <div className="bg-slate-900 text-white p-5 rounded-lg shadow-md">
+                  <p className="text-slate-400 text-sm font-medium mb-1">ยอดเก็บปลายทาง</p>
+                  <p className="text-3xl font-bold text-amber-400">฿{formatBaht(grandTotal)}</p>
+                </div>
+              </div>
             ) : (
               <div className="text-center space-y-4">
                 {!customer ? (
@@ -176,13 +388,19 @@ export function PaymentDialog({
                         <span className="text-sm text-slate-500 font-medium">ยอดหนี้เดิม</span>
                         <span className="font-bold text-base text-slate-700">฿{formatBaht(customer.balance)}</span>
                       </div>
+                      {customer.creditLimit > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-slate-500 font-medium">วงเงินเครดิต</span>
+                          <span className="font-bold text-base text-slate-700">฿{formatBaht(customer.creditLimit)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between items-center text-sm text-blue-600 font-bold bg-blue-50 p-2.5 rounded-md">
                         <span>บิลนี้เพิ่ม</span>
-                        <span className="text-base">+ ฿{formatBaht(grandTotal)}</span>
+                        <span className="text-base">+ ฿{formatBaht(creditAmount)}</span>
                       </div>
                       <div className="border-t border-border pt-3 flex justify-between items-center">
                         <span className="text-sm text-slate-600 font-medium">ยอดหนี้สุทธิ</span>
-                        <span className="font-bold text-lg text-slate-900">฿{formatBaht(customer.balance + grandTotal)}</span>
+                        <span className="font-bold text-lg text-slate-900">฿{formatBaht(customer.balance + creditAmount)}</span>
                       </div>
                     </div>
                   </>
@@ -193,7 +411,7 @@ export function PaymentDialog({
         </div>
 
         {/* RIGHT: Summary & Actions */}
-        <div className="w-1/2 p-5 flex flex-col bg-white">
+        <div className="w-3/5 p-5 flex flex-col bg-white overflow-y-auto">
           <div className="flex justify-between items-start mb-4">
             <h3 className="text-base font-bold text-slate-800">เอกสาร</h3>
             <button onClick={onClose} className="p-2 rounded-md hover:bg-slate-100 text-slate-400 transition-colors">
@@ -218,7 +436,109 @@ export function PaymentDialog({
             </button>
           </div>
 
-          {tab === 'CASH' && (
+          <div className="border border-border rounded-md p-3 mb-4 space-y-3">
+            <label className="flex items-center justify-between gap-3 cursor-pointer">
+              <span className="flex items-center gap-2 font-semibold text-sm text-slate-800">
+                <Truck className="w-4 h-4 text-primary" />
+                จัดส่งสินค้า
+              </span>
+              <input
+                type="checkbox"
+                checked={deliveryEnabled}
+                onChange={(e) => setDeliveryEnabled(e.target.checked)}
+                className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+              />
+            </label>
+
+            {deliveryEnabled && (
+              <div className="space-y-2">
+                <select
+                  value={selectedRecipientKey}
+                  onChange={(event) => selectRecipient(event.target.value)}
+                  className="hidden"
+                >
+                  <option value="">กรอกผู้รับเอง หรือเลือกลูกค้าเดิม</option>
+                  {deliveryCustomers.length > 0 && (
+                    <optgroup label="ลูกค้าที่เคยจัดส่ง">
+                      {deliveryCustomers.map((item) => (
+                        <option key={`delivery-${item.id}`} value={`delivery:${item.id}`}>
+                          {item.name} - {item.phone}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {customers.length > 0 && (
+                    <optgroup label="ลูกค้าในระบบ">
+                      {customers.map((item: any) => (
+                        <option key={`system-${item.id}`} value={`system:${item.id}`}>
+                          {item.name} {item.phone ? `- ${item.phone}` : ""}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    list="delivery-recipient-suggestions"
+                    value={recipientName}
+                    onChange={(e) => handleRecipientNameChange(e.target.value)}
+                    placeholder="ชื่อผู้รับของ"
+                    className="input h-10 px-2 text-sm"
+                  />
+                  <datalist id="delivery-recipient-suggestions">
+                    {recipientSuggestions.map((item) => (
+                      <option key={item.key} value={item.name}>
+                        {item.phone ? `${item.name} - ${item.phone}` : item.name}
+                      </option>
+                    ))}
+                  </datalist>
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    value={recipientPhone}
+                    onChange={(e) => setRecipientPhone(normalizePhone(e.target.value))}
+                    placeholder="เบอร์ผู้รับ 10 หลัก"
+                    maxLength={10}
+                    pattern="\d{10}"
+                    className="input h-10 px-2 text-sm"
+                  />
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    value={recipientPhone2}
+                    onChange={(e) => setRecipientPhone2(normalizePhone(e.target.value))}
+                    placeholder="เบอร์สำรอง 10 หลัก (ถ้ามี)"
+                    maxLength={10}
+                    pattern="\d{10}"
+                    className="input h-10 px-2 text-sm"
+                  />
+                  <label className="h-10 px-2 border border-border rounded-md flex items-center gap-2 text-sm text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={deliveryIsCOD}
+                      onChange={(e) => setDeliveryIsCOD(e.target.checked)}
+                      className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                    />
+                    เก็บปลายทาง
+                  </label>
+                </div>
+                <DeliveryAddressPicker
+                  value={deliveryAddress}
+                  onChange={setDeliveryAddress}
+                />
+                <input
+                  type="text"
+                  value={deliveryNote}
+                  onChange={(e) => setDeliveryNote(e.target.value)}
+                  placeholder="หมายเหตุจัดส่ง"
+                  className="input h-10 px-2 text-sm"
+                />
+              </div>
+            )}
+          </div>
+
+          {tab === 'CASH' && !isCodSale && (
             <div className="bg-slate-900 text-white p-5 rounded-lg mb-4 flex-1 flex flex-col justify-center items-center relative overflow-hidden shadow-md">
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500 rounded-full blur-3xl opacity-20" />
               <p className="text-slate-400 text-sm font-medium mb-1 relative z-10">เงินทอน</p>
@@ -231,9 +551,9 @@ export function PaymentDialog({
           {tab === 'PARTIAL' && (
             <div className="bg-slate-900 text-white p-5 rounded-lg mb-4 flex-1 flex flex-col justify-center items-center relative overflow-hidden shadow-md">
               <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500 rounded-full blur-3xl opacity-20" />
-              <p className="text-slate-400 text-sm font-medium mb-1 relative z-10">ค้างชำระเพิ่ม (ลงบัญชี)</p>
+              <p className="text-slate-400 text-sm font-medium mb-1 relative z-10">{isCodSale ? "ยอดเก็บปลายทาง" : "ค้างชำระเพิ่ม (ลงบัญชี)"}</p>
               <p className="text-3xl font-bold text-amber-400 relative z-10 tracking-tight">
-                ฿{formatBaht(Math.max(0, grandTotal - receivedNum))}
+                ฿{formatBaht(pendingAmount)}
               </p>
             </div>
           )}
@@ -249,9 +569,14 @@ export function PaymentDialog({
           )}
 
           <div className="mt-auto pt-3 border-t border-border">
+            {isOverCreditLimit && (
+              <p className="mb-2 text-sm font-medium text-red-600">
+                ยอดค้างหลังบิลนี้เกินวงเงินเครดิตของลูกค้า
+              </p>
+            )}
             <button
               onClick={handleConfirm}
-              disabled={loading}
+              disabled={loading || isOverCreditLimit}
               className="w-full h-14 bg-accent hover:bg-accent/90 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-md text-lg font-heading font-bold transition-colors shadow-sm active:scale-[0.98] flex justify-center items-center gap-2"
             >
               {loading ? "กำลังบันทึก..." : "ยืนยันการขาย"}

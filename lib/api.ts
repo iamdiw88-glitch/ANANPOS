@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
+import { UserRole } from "@prisma/client"
 import { z } from "zod"
 import { auth } from "@/lib/auth"
+import { hasPermission, type Permission } from "@/lib/permissions"
+import { prisma } from "@/lib/prisma"
 
 export class ApiError extends Error {
   status: number
@@ -18,15 +21,46 @@ export async function requireApiSession(allowedRoles?: string[]) {
     throw new ApiError("Unauthorized", 401)
   }
 
-  if (allowedRoles && !allowedRoles.includes(session.user.role)) {
+  const sessionRole = session.user.role as UserRole
+
+  if (allowedRoles && !allowedRoles.includes(sessionRole)) {
     throw new ApiError("Forbidden", 403)
+  }
+
+  const sessionUserId = Number(session.user.id)
+  const activeUser = Number.isInteger(sessionUserId)
+    ? await prisma.user.findFirst({
+        where: { id: sessionUserId, isActive: true },
+        select: { id: true, role: true },
+      })
+    : null
+
+  const fallbackUser = activeUser
+    ? null
+    : await prisma.user.findFirst({
+        where: { role: sessionRole, isActive: true },
+        select: { id: true, role: true },
+        orderBy: { id: "asc" },
+      })
+
+  const user = activeUser || fallbackUser
+  if (!user) {
+    throw new ApiError("Unauthorized", 401)
   }
 
   return {
     session,
-    userId: Number(session.user.id),
-    role: session.user.role,
+    userId: user.id,
+    role: user.role,
   }
+}
+
+export async function requireApiPermission(permission: Permission) {
+  const sessionData = await requireApiSession()
+  if (!hasPermission(sessionData.role, permission)) {
+    throw new ApiError("Forbidden", 403)
+  }
+  return sessionData
 }
 
 export async function parseJsonBody<TSchema extends z.ZodTypeAny>(
@@ -65,4 +99,3 @@ export function apiErrorResponse(error: unknown, fallback = "Internal server err
   console.error(error)
   return NextResponse.json({ success: false, error: fallback }, { status: 500 })
 }
-

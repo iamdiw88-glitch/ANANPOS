@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { ApiError, apiErrorResponse, parseJsonBody, requireApiSession } from "@/lib/api"
+import { ApiError, apiErrorResponse, parseJsonBody, requireApiPermission, requireApiSession } from "@/lib/api"
 
 const unitSchema = z.object({
   name: z.string().trim().min(1, "กรุณาระบุชื่อหน่วย"),
@@ -23,7 +23,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    await requireApiSession(["OWNER", "STAFF"])
+    await requireApiPermission("product:manage")
     const data = await parseJsonBody(request, unitSchema)
 
     const exists = await prisma.unit.findUnique({ where: { name: data.name } })
@@ -37,4 +37,3 @@ export async function POST(request: Request) {
     return apiErrorResponse(error, "Failed to create unit")
   }
 }
-

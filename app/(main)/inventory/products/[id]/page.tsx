@@ -1,17 +1,33 @@
 import { prisma } from "@/lib/prisma"
+import { auth } from "@/lib/auth"
+import { hasPermission } from "@/lib/permissions"
 import { ProductForm } from "@/components/inventory/product-form"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 
 export const dynamic = "force-dynamic"
 
-export default async function EditProductPage({ params }: { params: { id: string } }) {
-  const id = Number(params.id)
+export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+  if (!hasPermission(session.user.role, "product:manage")) redirect("/inventory")
+
+  const { id: idParam } = await params
+  const id = Number(idParam)
   if (isNaN(id)) notFound()
 
   const product = await prisma.product.findUnique({
     where: { id },
     include: {
-      productUnits: { where: { isActive: true } }
+      productUnits: { where: { isActive: true } },
+      stockBalance: true,
+      _count: {
+        select: {
+          stockMovements: true,
+          saleItems: true,
+          purchaseItems: true,
+          returnItems: true,
+        },
+      },
     }
   })
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { ApiError, apiErrorResponse, parseJsonBody, requireApiSession } from "@/lib/api"
+import { ApiError, apiErrorResponse, parseJsonBody, requireApiPermission } from "@/lib/api"
 import { lockDocumentSeries, nextSequenceFrom, yymmdd } from "@/lib/document-number"
 
 const purchaseItemSchema = z.object({
@@ -22,7 +22,7 @@ const roundMoney = (value: number) => Math.round(value * 100) / 100
 
 export async function POST(request: Request) {
   try {
-    const { userId } = await requireApiSession(["OWNER", "STAFF"])
+    const { userId } = await requireApiPermission("stock:adjust")
     const data = await parseJsonBody(request, purchaseSchema)
 
     const purchase = await prisma.$transaction(async (tx) => {
@@ -125,4 +125,3 @@ export async function POST(request: Request) {
     return apiErrorResponse(error, "Failed to create purchase")
   }
 }
-

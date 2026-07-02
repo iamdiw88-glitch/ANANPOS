@@ -7,7 +7,15 @@ import { Badge } from "@/components/ui/badge"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Button } from "@/components/ui/button"
 
-export function InventoryClient({ products, categories }: { products: any[], categories: any[] }) {
+export function InventoryClient({
+  products,
+  categories,
+  canAdjustStock = false,
+}: {
+  products: any[]
+  categories: any[]
+  canAdjustStock?: boolean
+}) {
   const [search, setSearch] = useState("")
   const [catFilter, setCatFilter] = useState<number | "ALL">("ALL")
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null)
@@ -63,7 +71,7 @@ export function InventoryClient({ products, categories }: { products: any[], cat
       } else {
         alert("Error adjusting stock")
       }
-    } catch (e) {
+    } catch {
       alert("Error")
     }
   }
@@ -82,7 +90,7 @@ export function InventoryClient({ products, categories }: { products: any[], cat
       } else {
         alert("Error writing off stock")
       }
-    } catch (e) {
+    } catch {
       alert("Error")
     }
   }
@@ -130,22 +138,27 @@ export function InventoryClient({ products, categories }: { products: any[], cat
         <TBody>
           {filteredProducts.map((p) => {
             const qty = p.stockBalance?.quantityOnHand || 0
-            const isLow = qty <= p.reorderPoint
+            const isOut = qty <= 0
+            const isLow = !isOut && qty <= p.reorderPoint
 
             return (
               <TR key={p.id}>
                 <TD className="text-slate-500">{p.code}</TD>
                 <TD className="font-semibold text-slate-800">{p.name}</TD>
                 <TD className="text-slate-600">{p.category?.name || '-'}</TD>
-                <TD className={`text-right font-semibold ${isLow ? 'text-red-600' : 'text-slate-800'}`}>
+                <TD className={`text-right font-semibold ${isOut ? 'text-red-700' : isLow ? 'text-amber-600' : 'text-slate-800'}`}>
                   {qty} {p.baseUnit?.name}
                 </TD>
                 <TD className="text-right text-slate-500">
                   {p.reorderPoint}
                 </TD>
                 <TD>
-                  {isLow ? (
+                  {isOut ? (
                     <Badge variant="danger">
+                      <AlertTriangle className="w-3 h-3" /> หมด
+                    </Badge>
+                  ) : isLow ? (
+                    <Badge variant="warning">
                       <AlertTriangle className="w-3 h-3" /> ใกล้หมด
                     </Badge>
                   ) : (
@@ -155,14 +168,18 @@ export function InventoryClient({ products, categories }: { products: any[], cat
                   )}
                 </TD>
                 <TD className="text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    <button onClick={() => setAdjustProduct(p)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md" title="ปรับสต็อก">
-                      <Settings2 className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => setDamageProduct(p)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-md" title="ตัดของเสีย">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                  {canAdjustStock ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <button onClick={() => setAdjustProduct(p)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md" title="ปรับสต็อก">
+                        <Settings2 className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => setDamageProduct(p)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-md" title="ตัดของเสีย">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-slate-400">-</span>
+                  )}
                 </TD>
                 <TD className="text-center">
                   <button onClick={() => openHistory(p)} className="p-1.5 text-primary hover:bg-primary/10 rounded-md" title="ดูประวัติความเคลื่อนไหว">
