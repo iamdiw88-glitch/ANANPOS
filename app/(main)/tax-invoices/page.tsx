@@ -50,7 +50,8 @@ export default async function TaxInvoicesPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => alert("ระบบพิมพ์ใบกำกับภาษี A4 กำลังอยู่ระหว่างพัฒนา")}
+                    className="opacity-50 cursor-not-allowed"
+                    title="ระบบพิมพ์ใบกำกับภาษี A4 กำลังอยู่ระหว่างพัฒนา"
                   >
                     <Printer className="w-4 h-4" /> พิมพ์ (PDF)
                   </Button>
