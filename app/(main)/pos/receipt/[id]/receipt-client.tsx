@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ThermalReceipt } from "@/components/pos/ThermalReceipt"
-import { TaxInvoice } from "@/components/pos/TaxInvoice"
+import dynamic from "next/dynamic"
+
+const TaxInvoice = dynamic(
+  () => import("@/components/pos/TaxInvoice").then((mod) => mod.TaxInvoice),
+  { ssr: false }
+)
 import { ArrowLeft, Printer } from "lucide-react"
 
 export function ReceiptClient({ sale }: { sale: any }) {
