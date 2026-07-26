@@ -56,6 +56,7 @@ export default async function DeliveryCustomersPage({
 
   const [deliveryCustomers, generalDeliveries, creditCustomers] = await Promise.all([
     prisma.deliveryCustomer.findMany({
+      relationLoadStrategy: "join",
       where: { isActive: true },
       include: {
         customer: { select: { code: true, type: true } },
@@ -66,6 +67,7 @@ export default async function DeliveryCustomersPage({
       },
     }),
     prisma.delivery.findMany({
+      relationLoadStrategy: "join",
       where: {
         deliveryCustomerId: null,
         customerId: null,
@@ -75,6 +77,7 @@ export default async function DeliveryCustomersPage({
       include: { sale: { select: { grandTotal: true, saleDate: true } } },
     }),
     prisma.customer.findMany({
+      relationLoadStrategy: "join",
       where: {
         OR: [{ type: "CREDIT" }, { balance: { gt: 0 } }],
       },

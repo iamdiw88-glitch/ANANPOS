@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { PageHeader } from "@/components/ui/page-header"
 import { VehiclesClient } from "@/components/vehicles/vehicles-client"
-import { getVehicleAlerts } from "@/lib/vehicle-alerts"
+import { buildVehicleAlerts } from "@/lib/vehicle-alerts"
 import { getDieselStockSummary } from "@/lib/diesel-stock"
 
 export const dynamic = "force-dynamic"
@@ -15,12 +15,11 @@ export default async function VehiclesPage() {
     redirect("/dashboard")
   }
 
-  const [vehicles, alerts, employees, fuelTotals, dieselStock] = await Promise.all([
+  const [vehicles, employees, fuelTotals, dieselStock] = await Promise.all([
     prisma.vehicle.findMany({
       where: { isActive: true },
       orderBy: { plateNumber: "asc" },
     }),
-    getVehicleAlerts(),
     prisma.employee.findMany({
       where: { isActive: true },
       select: { id: true, name: true, nickname: true },
@@ -33,6 +32,7 @@ export default async function VehiclesPage() {
     }),
     getDieselStockSummary(),
   ])
+  const alerts = buildVehicleAlerts(vehicles)
 
   const fuelSummaryByVehicle = new Map(
     fuelTotals.map((row) => [

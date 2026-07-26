@@ -26,7 +26,7 @@ A construction materials POS system built with Next.js, Prisma, and PostgreSQL. 
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20.9+
 - PostgreSQL database
 
 ### Setup
@@ -37,7 +37,7 @@ npm install
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your DATABASE_URL and NEXTAUTH_SECRET
+# Edit .env with DATABASE_URL, DIRECT_URL, and AUTH_SECRET
 
 # Push schema and seed
 npx prisma db push
@@ -51,27 +51,40 @@ npm run dev
 
 | Variable | Description |
 |---|---|
-| `DATABASE_URL` | PostgreSQL connection string (pooled) |
-| `DIRECT_URL` | Direct PostgreSQL connection (for migrations) |
-| `NEXTAUTH_SECRET` | Random secret for session signing |
-| `NEXTAUTH_URL` | App URL (e.g. `http://localhost:3000`) |
+| `DATABASE_URL` | Transaction pooler connection used on Vercel/serverless |
+| `DIRECT_URL` | Direct/session connection used for migrations and persistent shop servers |
+| `DATABASE_RUNTIME_URL` | Optional explicit runtime database override |
+| `PRISMA_CONNECTION_LIMIT` | Persistent server pool size; defaults to `10` |
+| `AUTH_SECRET` | Random secret for session signing (recommended) |
+| `NEXTAUTH_SECRET` | Legacy fallback for `AUTH_SECRET` |
+| `NEXTAUTH_URL` | Local app URL; usually optional on Vercel |
 
 ## Deploying to Vercel + Supabase
 
-1. **Create a Supabase project** and grab the connection strings from Project Settings → Database:
+1. **Create a Supabase project** and copy the connection strings from **Connect**:
    - **Transaction pooler** (port 6543) → `DATABASE_URL`, with `?pgbouncer=true&connection_limit=1` appended
-   - **Direct connection** (port 5432) → `DIRECT_URL`
-2. **Push the schema** to Supabase (run locally, pointed at Supabase):
+   - **Direct connection** (port 5432) → `DIRECT_URL`. If your network does not support IPv6, use the **Session pooler** connection instead.
+2. **Create a local `.env`** from `.env.example`, fill in both database URLs, then generate a signing secret:
    ```bash
+   npx auth secret
+   ```
+3. **Verify the database connection**, then push and seed the schema:
+   ```bash
+   echo "SELECT 1;" | npx prisma db execute --stdin --schema prisma/schema.prisma
    npx prisma db push
    npx prisma db seed
    ```
-3. **Import the repo into Vercel** and set the environment variables (`DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL` set to your production domain) in Project Settings → Environment Variables.
-4. Vercel runs `npm install` (which triggers `prisma generate` via `postinstall`) then `next build` automatically — no extra build configuration needed.
+4. **Import the repo into Vercel**. Keep the detected framework preset as **Next.js**, the root directory as the repository root, and the default build command. `vercel.json` pins Functions to Seoul (`icn1`) so they stay close to the current Supabase database.
+5. In **Project Settings → Environment Variables**, add `DATABASE_URL`, `DIRECT_URL`, and `AUTH_SECRET` to **Production** and **Preview**. Do not upload or commit the local `.env` file.
+6. Deploy. Vercel runs `npm install` (which triggers `prisma generate` via `postinstall`) and then `next build` automatically; no custom build command is required.
 
 Notes:
 - The Prisma client uses a singleton (`lib/prisma.ts`) so serverless function invocations reuse connections instead of exhausting the database's connection limit.
-- `pg_dump`-based backup (`/api/settings/backup`) only works on a server with `pg_dump` installed; on Vercel it returns a 501 — use Supabase's built-in Backups / Point-in-Time Recovery instead.
+- Outside Vercel, the app automatically uses `DIRECT_URL` as a persistent connection and shares one Prisma pool across all employee devices. Set `DATABASE_RUNTIME_URL` only when an explicit override is needed.
+- On Vercel, the app uses the Supabase transaction pooler from `DATABASE_URL`. If the Supabase project moves to another region, update the `regions` value in `vercel.json` to the matching Vercel region.
+- The seed creates demo data and users with PIN `1234`. Change the PINs immediately, or replace the demo seed before using the system in production.
+- Changing a Vercel environment variable only affects new deployments, so redeploy after changing one.
+- `pg_dump`-based backup (`/api/settings/backup`) only works on a server with `pg_dump` installed; on Vercel it returns a 501. Use Supabase Backups / Point-in-Time Recovery instead.
 
 ## Project Structure
 

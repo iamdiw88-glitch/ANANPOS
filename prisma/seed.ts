@@ -107,7 +107,7 @@ async function main() {
     ],
   })
 
-  const unitNames = ["ถุง", "พาเลท", "เส้น", "มัด", "คิว", "ตัน", "อัน", "ม้วน", "กล่อง", "แผ่น", "ถัง"]
+  const unitNames = ["ถุง", "พาเลท", "เส้น", "มัด", "คิว", "ตัน", "อัน", "ม้วน", "กล่อง", "แผ่น", "ถัง", "รายการ"]
   const units = new Map<string, Awaited<ReturnType<typeof prisma.unit.create>>>()
   for (const name of unitNames) {
     units.set(name, await prisma.unit.create({ data: { name } }))
@@ -288,6 +288,30 @@ async function main() {
 
     productRows.push({ product, defaultUnit: defaultUnit!, cost: seedProduct.cost })
   }
+
+  const miscProduct = await prisma.product.create({
+    data: {
+      code: "MISC-001",
+      name: "สินค้านอกระบบ",
+      searchTags: "สินค้าทั่วไป จิปาถะ อื่นๆ misc",
+      categoryId: categories.get("อื่นๆ")!.id,
+      baseUnitId: units.get("รายการ")!.id,
+      reorderPoint: 0,
+      isStockItem: false,
+      isActive: true,
+    },
+  })
+  await prisma.productUnit.create({
+    data: {
+      productId: miscProduct.id,
+      unitId: units.get("รายการ")!.id,
+      conversionRate: 1,
+      price: 0,
+      contractorPrice: null,
+      isDefaultSale: true,
+      isActive: true,
+    },
+  })
 
   const employees = await Promise.all([
     prisma.employee.create({ data: { employeeCode: "EMP-001", name: "อนันต์ เจ้าของร้าน", nickname: "อนันต์", role: "OWNER", position: "เจ้าของร้าน", phone: "0812345001", startDate: dateDaysAgo(400), avatarColor: "#2563EB", userId: ownerUser.id } }),

@@ -15,20 +15,22 @@ export default async function InventoryPage() {
   const canManageProducts = hasPermission(session?.user?.role || "", "product:manage")
   const canAdjustStock = hasPermission(session?.user?.role || "", "stock:adjust")
 
-  const products = await prisma.product.findMany({
-    where: { isStockItem: true, isActive: true },
-    include: {
-      category: true,
-      baseUnit: true,
-      stockBalance: true
-    },
-    orderBy: { name: 'asc' }
-  })
-
-  const categories = await prisma.category.findMany({
-    where: { isActive: true },
-    orderBy: { sortOrder: 'asc' }
-  })
+  const [products, categories] = await Promise.all([
+    prisma.product.findMany({
+      relationLoadStrategy: "join",
+      where: { isStockItem: true, isActive: true },
+      include: {
+        category: true,
+        baseUnit: true,
+        stockBalance: true
+      },
+      orderBy: { name: 'asc' }
+    }),
+    prisma.category.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: 'asc' }
+    }),
+  ])
 
   return (
     <div className="flex flex-col gap-4">

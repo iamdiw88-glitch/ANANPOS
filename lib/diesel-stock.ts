@@ -19,19 +19,21 @@ export async function ensureDieselOpeningBalance(tx: Prisma.TransactionClient | 
 
 export async function getDieselStockSummary(tx: Prisma.TransactionClient | typeof prisma = prisma) {
   await ensureDieselOpeningBalance(tx)
-  const latest = await tx.dieselStockLedger.findFirst({
-    orderBy: { id: "desc" },
-    select: { balanceAfter: true },
-  })
 
   const monthStart = new Date()
   monthStart.setDate(1)
   monthStart.setHours(0, 0, 0, 0)
 
-  const monthOut = await tx.dieselStockLedger.aggregate({
-    where: { type: "OUT", recordedAt: { gte: monthStart } },
-    _sum: { liters: true },
-  })
+  const [latest, monthOut] = await Promise.all([
+    tx.dieselStockLedger.findFirst({
+      orderBy: { id: "desc" },
+      select: { balanceAfter: true },
+    }),
+    tx.dieselStockLedger.aggregate({
+      where: { type: "OUT", recordedAt: { gte: monthStart } },
+      _sum: { liters: true },
+    }),
+  ])
 
   return {
     capacityLiters: 1000,

@@ -88,6 +88,7 @@ export default async function DashboardPage() {
       _sum: { balance: true },
     }),
     prisma.invoice.findMany({
+      relationLoadStrategy: "join",
       where: { balance: { gt: 0 }, status: { in: ["OPEN", "PARTIAL"] } },
       select: {
         id: true,
@@ -100,6 +101,7 @@ export default async function DashboardPage() {
       orderBy: { dueDate: "asc" },
     }),
     prisma.customer.findMany({
+      relationLoadStrategy: "join",
       where: { OR: [{ type: "CREDIT" }, { balance: { gt: 0 } }], isActive: true },
       select: {
         id: true,

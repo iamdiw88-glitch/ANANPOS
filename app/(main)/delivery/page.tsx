@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic"
 export default async function DeliveryPage() {
   // Fetch active deliveries (not delivered/failed within the last 2 days)
   const deliveries = await prisma.delivery.findMany({
+    relationLoadStrategy: "join",
     where: {
       OR: [
         { status: { in: ["PENDING", "IN_TRANSIT"] } },

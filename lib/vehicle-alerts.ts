@@ -10,6 +10,15 @@ export type VehicleAlert = {
   severity: "expired" | "critical" | "warning"
 }
 
+type VehicleAlertSource = {
+  id: number
+  plateNumber: string
+  vehicleCode: string
+  insuranceExpiry: Date | null
+  taxExpiry: Date | null
+  inspectionExpiry: Date | null
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000
 
 function startOfToday() {
@@ -40,20 +49,8 @@ function buildAlert(
   }
 }
 
-export async function getVehicleAlerts(): Promise<VehicleAlert[]> {
+export function buildVehicleAlerts(vehicles: VehicleAlertSource[]): VehicleAlert[] {
   const today = startOfToday()
-  const vehicles = await prisma.vehicle.findMany({
-    where: { isActive: true },
-    select: {
-      id: true,
-      vehicleCode: true,
-      plateNumber: true,
-      insuranceExpiry: true,
-      taxExpiry: true,
-      inspectionExpiry: true,
-    },
-  })
-
   return vehicles
     .flatMap((vehicle) => {
       const alerts: VehicleAlert[] = []
@@ -72,4 +69,20 @@ export async function getVehicleAlerts(): Promise<VehicleAlert[]> {
       return alerts
     })
     .sort((a, b) => a.daysLeft - b.daysLeft)
+}
+
+export async function getVehicleAlerts(): Promise<VehicleAlert[]> {
+  const vehicles = await prisma.vehicle.findMany({
+    where: { isActive: true },
+    select: {
+      id: true,
+      vehicleCode: true,
+      plateNumber: true,
+      insuranceExpiry: true,
+      taxExpiry: true,
+      inspectionExpiry: true,
+    },
+  })
+
+  return buildVehicleAlerts(vehicles)
 }

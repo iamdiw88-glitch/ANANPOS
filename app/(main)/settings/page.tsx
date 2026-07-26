@@ -13,15 +13,15 @@ export default async function SettingsPage() {
   if (!session?.user?.id) redirect("/login")
   if (!hasPermission(session.user.role, "settings:manage")) redirect("/pos")
 
-  const users = await prisma.user.findMany({
-    orderBy: { createdAt: "asc" }
-  })
-
-  const units = await prisma.unit.findMany({
-    orderBy: { name: "asc" }
-  })
-
-  const rawSettings = await prisma.setting.findMany()
+  const [users, units, rawSettings] = await Promise.all([
+    prisma.user.findMany({
+      orderBy: { createdAt: "asc" }
+    }),
+    prisma.unit.findMany({
+      orderBy: { name: "asc" }
+    }),
+    prisma.setting.findMany(),
+  ])
   const settings = rawSettings.reduce((acc: any, cur) => {
     acc[cur.key] = cur.value
     return acc
