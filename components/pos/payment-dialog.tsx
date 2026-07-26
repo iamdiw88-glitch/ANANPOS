@@ -284,11 +284,19 @@ export function PaymentDialog({
 
   return (
     <div className="modal-overlay">
-      <div className="modal flex w-full max-w-6xl h-[760px]">
+      <div className="modal flex h-[calc(100dvh-0.75rem)] w-full max-w-6xl flex-col overflow-y-auto lg:h-[min(760px,calc(100dvh-2rem))] lg:flex-row lg:overflow-hidden">
 
         {/* LEFT: Payment Methods */}
-        <div className="w-2/5 border-r border-border flex flex-col bg-slate-50">
-          <div className="p-4 border-b border-border bg-white">
+        <div className="flex w-full shrink-0 flex-col bg-slate-50 lg:w-2/5 lg:border-r lg:border-border">
+          <div className="flex items-center justify-between border-b border-border bg-white p-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="order-2 ml-auto flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary lg:hidden"
+              aria-label="ปิดหน้าชำระเงิน"
+            >
+              <X className="h-5 w-5" />
+            </button>
             <h2 className="text-lg font-heading font-bold text-slate-800">การชำระเงิน</h2>
           </div>
 
@@ -314,7 +322,7 @@ export function PaymentDialog({
             </button>
           </div>
 
-          <div className="p-4 flex-1 flex flex-col justify-center overflow-y-auto">
+          <div className="flex flex-col justify-center p-4 lg:flex-1 lg:overflow-y-auto">
             {(tab === 'PARTIAL' || (tab === 'CASH' && !isCodSale)) ? (
               <div className="space-y-3">
                 <div className="text-center mb-3">
@@ -411,7 +419,7 @@ export function PaymentDialog({
         </div>
 
         {/* RIGHT: Summary & Actions */}
-        <div className="w-3/5 p-5 flex flex-col bg-white overflow-y-auto">
+        <div className="flex w-full flex-col bg-white p-4 sm:p-5 lg:w-3/5 lg:overflow-y-auto">
           <div className="flex justify-between items-start mb-4">
             <h3 className="text-base font-bold text-slate-800">เอกสาร</h3>
             <button onClick={onClose} className="p-2 rounded-md hover:bg-slate-100 text-slate-400 transition-colors">
@@ -477,7 +485,7 @@ export function PaymentDialog({
                     </optgroup>
                   )}
                 </select>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <input
                     type="text"
                     list="delivery-recipient-suggestions"

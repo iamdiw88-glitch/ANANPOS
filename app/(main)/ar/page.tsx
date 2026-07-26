@@ -86,7 +86,7 @@ export default async function ARPage() {
     <div className="flex flex-col h-full gap-4">
       <PageHeader title="ลูกหนี้ / เงินเชื่อ" description="จัดการหนี้สิน การวางบิล และรับชำระเงิน" />
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatCard
           label="ยอดลูกหนี้รวม"
           value={`฿${totalAR.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`}

@@ -3,8 +3,13 @@ import { cn } from "@/lib/utils"
 
 export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="w-full overflow-auto rounded-md border border-border">
-      <table className={cn("w-full text-sm border-collapse", className)} {...props} />
+    <div
+      className="touch-scroll w-full max-w-full overflow-x-auto rounded-lg border border-border"
+      role="region"
+      aria-label="ตารางข้อมูล เลื่อนซ้ายขวาได้บนหน้าจอขนาดเล็ก"
+      tabIndex={0}
+    >
+      <table className={cn("w-full min-w-max border-collapse text-sm", className)} {...props} />
     </div>
   )
 }
@@ -24,7 +29,7 @@ export function TR({ className, ...props }: HTMLAttributes<HTMLTableRowElement>)
 export function TH({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
   return (
     <th
-      className={cn("text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-3 py-2 sticky top-0 bg-slate-50", className)}
+      className={cn("sticky top-0 whitespace-nowrap bg-slate-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600", className)}
       {...props}
     />
   )

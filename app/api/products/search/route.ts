@@ -30,6 +30,7 @@ export async function GET(request: Request) {
         id: true,
         code: true,
         name: true,
+        imageUrl: true,
         searchTags: true,
         soldCount: true,
         categoryId: true,

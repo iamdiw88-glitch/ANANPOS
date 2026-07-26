@@ -1,6 +1,6 @@
 "use client"
 
-import { PackagePlus, ShoppingCart, Trash2 } from "lucide-react"
+import { PanelRightClose, PackagePlus, ShoppingCart, Trash2 } from "lucide-react"
 
 const formatBaht = (amount: number) => {
   return new Intl.NumberFormat("th-TH", {
@@ -22,13 +22,32 @@ export function CartPanel({
   grandTotal,
   onCreateCustomItem,
   onCheckout,
+  onMinimize,
 }: any) {
   return (
-    <div className="flex flex-col h-full bg-white border-l border-border relative">
-      <div className="p-3 border-b border-border bg-slate-50">
-        <div className="flex justify-between items-center mb-2">
-          <span className="font-semibold text-sm text-slate-600">บิลขายใหม่</span>
-          <span className="text-slate-400 text-xs">{new Date().toLocaleDateString("th-TH")}</span>
+    <div className="relative flex h-full flex-col bg-white">
+      <div className="border-b border-border bg-slate-50 p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-primary">
+              <ShoppingCart className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <span className="block font-heading text-base font-extrabold text-slate-900">บิลขายใหม่</span>
+              <span className="block text-xs font-semibold text-slate-500">
+                {cart.length} รายการ · {new Date().toLocaleDateString("th-TH")}
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onMinimize}
+            className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 shadow-sm transition-colors hover:border-primary/30 hover:bg-blue-50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="ย่อตะกร้า"
+          >
+            <PanelRightClose className="h-4 w-4" />
+            ย่อตะกร้า
+          </button>
         </div>
 
         <select
@@ -49,11 +68,14 @@ export function CartPanel({
         </select>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+      <div className="flex-1 space-y-2 overflow-y-auto p-4 scrollbar-thin">
         {cart.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-slate-400">
-            <ShoppingCart className="w-12 h-12 mb-3 opacity-50" />
-            <p className="text-sm">ยังไม่มีรายการสินค้า</p>
+          <div className="flex h-full flex-col items-center justify-center text-slate-400">
+            <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100">
+              <ShoppingCart className="h-8 w-8 text-slate-300" />
+            </span>
+            <p className="text-sm font-semibold">ยังไม่มีรายการสินค้า</p>
+            <p className="mt-1 text-xs">เลือกสินค้าจากหน้าร้านเพื่อเริ่มบิล</p>
           </div>
         ) : (
           cart.map((item: any) => (
@@ -77,7 +99,7 @@ export function CartPanel({
         )}
       </div>
 
-      <div className="p-3 border-t border-border bg-white space-y-2">
+      <div className="space-y-2 border-t border-border bg-white p-4">
         <button
           type="button"
           onClick={onCreateCustomItem}

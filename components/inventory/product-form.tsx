@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { ImageUpload } from "@/components/ui/image-upload"
 import { Plus, Trash2, ArrowLeft } from "lucide-react"
 
 type ProductUnitForm = {
@@ -17,6 +18,7 @@ type ProductUnitForm = {
 type ProductFormState = {
   code: string
   name: string
+  imageUrl: string
   searchTags: string
   categoryId: number | string
   baseUnitId: number | string
@@ -39,6 +41,7 @@ export function ProductForm({ initialData, categories, units }: { initialData?: 
   const [formData, setFormData] = useState<ProductFormState>({
     code: initialData?.code || "",
     name: initialData?.name || "",
+    imageUrl: initialData?.imageUrl || "",
     searchTags: initialData?.searchTags || "",
     categoryId: initialData?.categoryId || categories[0]?.id || "",
     baseUnitId: initialData?.baseUnitId || units[0]?.id || "",
@@ -123,13 +126,21 @@ export function ProductForm({ initialData, categories, units }: { initialData?: 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-4xl bg-white p-6 rounded-lg shadow-sm border border-border">
-      <div className="flex items-center gap-4 mb-6">
+    <form onSubmit={handleSubmit} className="max-w-4xl rounded-lg border border-border bg-white p-3 shadow-sm sm:p-6">
+      <div className="mb-6 flex flex-wrap items-center gap-3 sm:gap-4">
         <Button type="button" variant="ghost" onClick={() => router.back()}><ArrowLeft className="w-4 h-4 mr-2" /> กลับ</Button>
         <h2 className="text-xl font-bold font-heading">{initialData ? 'แก้ไขสินค้า' : 'เพิ่มสินค้าใหม่'}</h2>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="mb-6 grid gap-6 lg:grid-cols-[280px_1fr]">
+        <ImageUpload
+          value={formData.imageUrl}
+          onChange={(imageUrl) => setFormData({ ...formData, imageUrl })}
+          label="รูปสินค้า"
+          helpText="แนะนำรูปสี่เหลี่ยมหรือแนวนอน ระบบจะย่อให้เหมาะกับการ์ดสินค้า"
+        />
+
+        <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium mb-1">รหัสสินค้า</label>
           <input required type="text" className="w-full border rounded-md p-2" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} />
@@ -138,7 +149,7 @@ export function ProductForm({ initialData, categories, units }: { initialData?: 
           <label className="block text-sm font-medium mb-1">ชื่อสินค้า</label>
           <input required type="text" className="w-full border rounded-md p-2" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
         </div>
-        <div className="col-span-2">
+        <div className="sm:col-span-2">
           <label className="block text-sm font-medium mb-1">คำค้นหาเพิ่มเติม</label>
           <input
             type="text"
@@ -189,6 +200,7 @@ export function ProductForm({ initialData, categories, units }: { initialData?: 
             <span className="font-medium">เป็นสินค้าตัดสต็อก (มีจำนวน)</span>
           </label>
         </div>
+        </div>
       </div>
 
       <div className="border-t pt-6 mb-6">
@@ -199,7 +211,8 @@ export function ProductForm({ initialData, categories, units }: { initialData?: 
           </Button>
         </div>
         
-        <table className="w-full text-sm">
+        <div className="touch-scroll overflow-x-auto rounded-lg border border-slate-200">
+        <table className="w-full min-w-[720px] text-sm">
           <thead className="bg-slate-50">
             <tr>
               <th className="p-2 text-left">หน่วย</th>
@@ -258,6 +271,7 @@ export function ProductForm({ initialData, categories, units }: { initialData?: 
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       <div className="flex justify-end gap-3">

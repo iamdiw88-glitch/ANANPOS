@@ -123,7 +123,7 @@ export function EmployeesClient({ initialEmployees }: { initialEmployees: Employ
 
       <section className="card p-4 space-y-3">
         <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-          <div className="flex gap-2">
+          <div className="touch-scroll flex gap-2 overflow-x-auto pb-1">
             {[
               ["active", "พนักงานทั้งหมด", totals.active],
               ["drivers", "คนขับรถ", totals.drivers],
@@ -141,8 +141,8 @@ export function EmployeesClient({ initialEmployees }: { initialEmployees: Employ
               </button>
             ))}
           </div>
-          <div className="flex gap-2">
-            <div className="relative min-w-[240px]">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="relative min-w-0 flex-1 sm:min-w-[240px]">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ค้นหาพนักงาน" className="pl-9" />
             </div>

@@ -111,7 +111,7 @@ export function AgingReportClient({ customers }: any) {
         }
       />
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatCard
           label="ยอดรวมค้างชำระ"
           value={`฿${formatBaht(agingData.totals.totalAll)}`}
@@ -133,7 +133,7 @@ export function AgingReportClient({ customers }: any) {
       </div>
 
       <div className="card p-3 flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="relative min-w-0 flex-1 sm:min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input
             type="text"

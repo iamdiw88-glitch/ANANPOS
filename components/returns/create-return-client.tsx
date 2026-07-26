@@ -144,7 +144,7 @@ export function CreateReturnClient({ currentUserId }: { currentUserId: number })
   return (
     <div className="flex flex-col h-full gap-4 max-w-5xl mx-auto w-full">
       {/* Header */}
-      <div className="flex justify-between items-center gap-4">
+      <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
         <div className="flex items-center gap-3">
           <Link href="/returns" className="p-2 bg-white rounded-md hover:bg-slate-100 transition-colors border border-border">
             <ArrowLeft className="w-4 h-4 text-slate-600" />
@@ -165,7 +165,7 @@ export function CreateReturnClient({ currentUserId }: { currentUserId: number })
         </Button>
       </div>
 
-      <div className="card p-4 flex items-end gap-3">
+      <div className="card flex flex-col items-stretch gap-3 p-3 sm:flex-row sm:items-end sm:p-4">
         <div className="flex-1">
           <label className="block text-sm font-medium text-slate-700 mb-1">ค้นหาจากเลขที่บิลขาย (Bill No)</label>
           <div className="relative">
@@ -197,9 +197,9 @@ export function CreateReturnClient({ currentUserId }: { currentUserId: number })
       )}
 
       {sale && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           {/* Items */}
-          <div className="col-span-2 card p-0 flex flex-col h-[calc(100vh-280px)] overflow-hidden">
+          <div className="card flex min-h-[28rem] flex-col overflow-hidden p-0 lg:col-span-2 lg:h-[calc(100dvh-280px)]">
             <div className="px-4 py-3 border-b border-border bg-slate-50 flex justify-between items-center">
               <h2 className="font-semibold text-sm text-slate-800 flex items-center gap-2">
                 <PackageMinus className="w-4 h-4" /> สินค้าในบิล {sale.billNo}
@@ -209,7 +209,7 @@ export function CreateReturnClient({ currentUserId }: { currentUserId: number })
               </span>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
+            <div className="touch-scroll flex-1 overflow-auto">
               <table className="table-dense">
                 <thead>
                   <tr>

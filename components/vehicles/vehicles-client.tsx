@@ -263,7 +263,7 @@ export function VehiclesClient({
               {formatNumber(dieselStock.balanceLiters)} / {formatNumber(dieselStock.capacityLiters)} ลิตร
             </p>
           </div>
-          <div className="min-w-[220px]">
+          <div className="w-full min-w-0 md:w-auto md:min-w-[220px]">
             <div className="h-3 rounded-full bg-slate-100 overflow-hidden">
               <div className="h-full bg-blue-500" style={{ width: `${stockPct}%` }} />
             </div>
@@ -294,7 +294,7 @@ export function VehiclesClient({
 
       <section className="card p-4 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div className="relative min-w-[260px]">
+          <div className="relative min-w-0 flex-1 md:max-w-md">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ค้นหารถหรือเครื่องจักร" className="pl-9" />
           </div>

@@ -1,5 +1,6 @@
 import NextAuth from "next-auth"
 import { authConfig } from "@/lib/auth.config"
+import { getRoleHomePath } from "@/lib/role-home"
 
 export default NextAuth(authConfig).auth((req) => {
   const isLoggedIn = !!req.auth;
@@ -10,7 +11,7 @@ export default NextAuth(authConfig).auth((req) => {
 
   if (isLoginRoute) {
     if (isLoggedIn) {
-      return Response.redirect(new URL('/dashboard', req.nextUrl));
+      return Response.redirect(new URL(getRoleHomePath(req.auth?.user?.role), req.nextUrl));
     }
     return;
   }

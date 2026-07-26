@@ -12,7 +12,7 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
 
 export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("px-4 py-3 border-b border-border flex items-center justify-between", className)} {...props} />
+    <div className={cn("flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-3 sm:px-4", className)} {...props} />
   )
 }
 
@@ -21,5 +21,5 @@ export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingEle
 }
 
 export function CardContent({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("p-4", className)} {...props} />
+  return <div className={cn("p-3 sm:p-4", className)} {...props} />
 }

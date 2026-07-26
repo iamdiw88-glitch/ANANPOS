@@ -5,6 +5,7 @@ import { ApiError, apiErrorResponse, parseJsonBody, requireApiPermission, requir
 
 const categorySchema = z.object({
   name: z.string().trim().min(1, "กรุณาระบุชื่อหมวดหมู่"),
+  imageUrl: z.string().max(750_000, "รูปภาพมีขนาดใหญ่เกินไป").nullable().optional(),
   sortOrder: z.coerce.number().int().min(0).default(0),
 })
 
@@ -24,14 +25,18 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    await requireApiPermission("product:manage")
+    await requireApiPermission("catalog:create")
     const data = await parseJsonBody(request, categorySchema)
 
     const exists = await prisma.category.findUnique({ where: { name: data.name } })
     if (exists) throw new ApiError("ชื่อหมวดหมู่นี้มีอยู่ในระบบแล้ว", 400)
 
     const category = await prisma.category.create({
-      data: { name: data.name, sortOrder: data.sortOrder },
+      data: {
+        name: data.name,
+        imageUrl: data.imageUrl || null,
+        sortOrder: data.sortOrder,
+      },
     })
     return NextResponse.json({ success: true, data: category })
   } catch (error) {

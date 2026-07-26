@@ -132,6 +132,7 @@ enum MaintenanceType {
 model Category {
   id        Int       @id @default(autoincrement())
   name      String    @unique
+  imageUrl  String?   @db.Text
   sortOrder Int       @default(0)
   isActive  Boolean   @default(true)
   products  Product[]
@@ -163,6 +164,7 @@ model Product {
   id           Int      @id @default(autoincrement())
   code         String   @unique
   name         String
+  imageUrl     String?  @db.Text
   description  String?
   searchTags   String?
   soldCount    Int      @default(0)

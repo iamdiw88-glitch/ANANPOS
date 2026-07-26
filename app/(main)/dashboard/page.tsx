@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { getRoleHomePath } from "@/lib/role-home"
+import { redirect } from "next/navigation"
 import Link from "next/link"
 import {
   AlertOctagon,
@@ -63,6 +65,8 @@ export const dynamic = "force-dynamic"
 export default async function DashboardPage() {
   const session = await auth()
   const role = (session?.user?.role as string) || "CASHIER"
+  const roleHomePath = getRoleHomePath(role)
+  if (roleHomePath !== "/dashboard") redirect(roleHomePath)
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -191,7 +195,7 @@ export default async function DashboardPage() {
     <div className="max-w-7xl mx-auto space-y-5">
       <PageHeader title="หน้าหลัก" description="ภาพรวมการขาย เงินสด ลูกหนี้ สต็อก และงานที่ต้องจัดการวันนี้" />
 
-      <section className="grid grid-cols-3 md:grid-cols-6 gap-2">
+      <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
         {visibleMenu.map((item) => {
           const Icon = item.icon
           return (

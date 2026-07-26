@@ -7,6 +7,7 @@ export type Permission =
   | "sale:price_override"
   | "stock:view"
   | "stock:adjust"
+  | "catalog:create"
   | "product:manage"
   | "customer:view"
   | "credit:settle"
@@ -23,6 +24,7 @@ const ROLE_PERMISSIONS: Record<Exclude<AppRole, "MANAGER">, Permission[]> = {
     "sale:price_override",
     "stock:view",
     "stock:adjust",
+    "catalog:create",
     "product:manage",
     "customer:view",
     "credit:settle",
@@ -37,6 +39,7 @@ const ROLE_PERMISSIONS: Record<Exclude<AppRole, "MANAGER">, Permission[]> = {
     "sale:price_override",
     "stock:view",
     "stock:adjust",
+    "catalog:create",
     "product:manage",
     "customer:view",
     "credit:settle",

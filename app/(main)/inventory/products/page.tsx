@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic"
 export default async function ProductsPage() {
   const session = await auth()
   const canManageProducts = hasPermission(session?.user?.role || "", "product:manage")
+  const canCreateCatalog = hasPermission(session?.user?.role || "", "catalog:create")
 
   const products = await prisma.product.findMany({
     where: { isActive: true },
@@ -43,10 +44,10 @@ export default async function ProductsPage() {
   })
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div>
+      <div className="mb-5 flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
         <h1 className="text-2xl font-bold font-heading">จัดการข้อมูลสินค้า (Product Master)</h1>
-        {canManageProducts && (
+        {canCreateCatalog && (
           <Link href="/inventory/products/new">
             <Button className="flex items-center gap-2">
               <Plus className="w-4 h-4" /> เพิ่มสินค้าใหม่
@@ -55,8 +56,8 @@ export default async function ProductsPage() {
         )}
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-border overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="touch-scroll overflow-x-auto rounded-lg border border-border bg-white shadow-sm">
+        <table className="w-full min-w-[880px] text-sm">
           <thead className="bg-slate-50 border-b border-border">
             <tr>
               <th className="text-left p-4 font-semibold">รหัสสินค้า</th>

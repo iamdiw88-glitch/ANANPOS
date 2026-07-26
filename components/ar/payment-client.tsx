@@ -158,7 +158,7 @@ export function PaymentClient({ customers, defaultCustomerId, defaultInvoiceId, 
   return (
     <div className="flex flex-col h-full gap-4 max-w-5xl mx-auto w-full">
       {/* Header & Back */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
         <div className="flex items-center gap-3">
           <Link href="/ar" className="p-2 bg-white rounded-full hover:bg-slate-100 transition-colors shadow-sm border border-border">
             <ArrowLeft className="w-4 h-4 text-slate-600" />
@@ -178,9 +178,9 @@ export function PaymentClient({ customers, defaultCustomerId, defaultInvoiceId, 
         </Button>
       </div>
 
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         {/* Left Form */}
-        <div className="col-span-2 space-y-4">
+        <div className="space-y-4 lg:col-span-2">
           <Card className="p-4 space-y-3">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">ลูกค้า</label>
@@ -288,7 +288,7 @@ export function PaymentClient({ customers, defaultCustomerId, defaultInvoiceId, 
         </div>
 
         {/* Right Panel: Allocation */}
-        <Card className="col-span-3 flex flex-col h-[calc(100vh-200px)] p-0 overflow-hidden">
+        <Card className="flex min-h-[28rem] flex-col overflow-hidden p-0 lg:col-span-3 lg:h-[calc(100dvh-200px)]">
           <div className="p-3 border-b border-border flex justify-between items-center bg-slate-50">
             <h2 className="text-sm font-semibold text-slate-800">จัดสรรยอดชำระ</h2>
             <div className="flex gap-1 bg-white rounded-md p-1 border border-border">

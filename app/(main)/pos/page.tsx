@@ -1,9 +1,14 @@
 import { prisma } from "@/lib/prisma"
+import { auth } from "@/lib/auth"
+import { hasPermission } from "@/lib/permissions"
 import { POSClient } from "@/components/pos/pos-client"
 
 export const dynamic = "force-dynamic"
 
 export default async function POSPage() {
+  const session = await auth()
+  const canCreateCatalog = hasPermission(session?.user?.role || "", "catalog:create")
+
   const [products, miscProduct, categories, customers, rawSettings] = await Promise.all([
     prisma.product.findMany({
       relationLoadStrategy: "join",
@@ -12,6 +17,7 @@ export default async function POSPage() {
         id: true,
         code: true,
         name: true,
+        imageUrl: true,
         searchTags: true,
         soldCount: true,
         categoryId: true,
@@ -45,6 +51,7 @@ export default async function POSPage() {
         id: true,
         code: true,
         name: true,
+        imageUrl: true,
         searchTags: true,
         soldCount: true,
         categoryId: true,
@@ -71,7 +78,16 @@ export default async function POSPage() {
     }),
     prisma.category.findMany({
       where: { isActive: true },
-      orderBy: { sortOrder: 'asc' }
+      include: {
+        _count: {
+          select: {
+            products: {
+              where: { isActive: true, code: { not: "MISC-001" } },
+            },
+          },
+        },
+      },
+      orderBy: { sortOrder: "asc" },
     }),
     prisma.customer.findMany({
       where: { isActive: true }
@@ -88,12 +104,13 @@ export default async function POSPage() {
   const posProducts = miscProduct ? [...products, miscProduct] : products
 
   return (
-    <div className="h-full bg-slate-50 flex -m-4 md:-m-8">
+    <div className="-m-3 flex h-[calc(100dvh-4rem)] bg-slate-50 sm:-m-4 lg:-m-6 xl:-m-8">
       <POSClient 
         initialProducts={posProducts} 
         categories={categories} 
         customers={customers} 
         settings={settings}
+        canCreateCatalog={canCreateCatalog}
       />
     </div>
   )

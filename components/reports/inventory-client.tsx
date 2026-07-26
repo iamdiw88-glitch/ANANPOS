@@ -111,7 +111,7 @@ export function InventoryClient({ initialData }: { initialData: any[] }) {
 
   return (
     <div className="flex flex-col h-full gap-4 pb-4">
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatCard label="รายการสินค้าทั้งหมด" value={`${filteredData.length} รายการ`} icon={Package} tone="default" />
         <StatCard label="มูลค่าสต็อกรวม (ทุนเฉลี่ย)" value={`฿${formatBaht(totalInventoryValue)}`} icon={Wallet} tone="default" />
         <div className="card p-4 flex items-center justify-between">

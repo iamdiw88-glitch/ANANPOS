@@ -20,6 +20,7 @@ const productUnitSchema = z.object({
 const productSchema = z.object({
   code: z.string().trim().min(1, "กรุณาระบุรหัสสินค้า"),
   name: z.string().trim().min(1, "กรุณาระบุชื่อสินค้า"),
+  imageUrl: z.string().max(750_000, "รูปภาพมีขนาดใหญ่เกินไป").nullable().optional(),
   searchTags: z.string().trim().nullable().optional(),
   categoryId: z.coerce.number().int().positive(),
   baseUnitId: z.coerce.number().int().positive(),
@@ -97,6 +98,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         data: {
           code: data.code,
           name: data.name,
+          imageUrl: data.imageUrl || null,
           searchTags: data.searchTags || null,
           categoryId: data.categoryId,
           baseUnitId: data.baseUnitId,

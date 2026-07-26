@@ -3,12 +3,66 @@
 import { useState } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import {
+  ArrowLeft,
+  BadgeDollarSign,
+  CheckCircle2,
+  ChevronRight,
+  Crown,
+  Delete,
+  HardHat,
+  LoaderCircle,
+  LockKeyhole,
+  RotateCcw,
+  UserRound,
+  type LucideIcon,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
+import { getRoleHomePath } from "@/lib/role-home"
 
 type User = {
   id: number
   name: string
   role: string
+}
+
+type RoleVisual = {
+  Icon: LucideIcon
+  iconClass: string
+  iconBackground: string
+  borderClass: string
+}
+
+const ROLE_VISUALS: Record<string, RoleVisual> = {
+  OWNER: {
+    Icon: Crown,
+    iconClass: "text-amber-700",
+    iconBackground: "bg-amber-100",
+    borderClass: "hover:border-amber-400 focus-visible:ring-amber-400/30",
+  },
+  STAFF: {
+    Icon: HardHat,
+    iconClass: "text-blue-700",
+    iconBackground: "bg-blue-100",
+    borderClass: "hover:border-blue-400 focus-visible:ring-blue-400/30",
+  },
+  CASHIER: {
+    Icon: BadgeDollarSign,
+    iconClass: "text-emerald-700",
+    iconBackground: "bg-emerald-100",
+    borderClass: "hover:border-emerald-400 focus-visible:ring-emerald-400/30",
+  },
+}
+
+const DEFAULT_ROLE_VISUAL: RoleVisual = {
+  Icon: UserRound,
+  iconClass: "text-slate-700",
+  iconBackground: "bg-slate-100",
+  borderClass: "hover:border-slate-400 focus-visible:ring-slate-400/30",
+}
+
+function getRoleVisual(role: string) {
+  return ROLE_VISUALS[role] || DEFAULT_ROLE_VISUAL
 }
 
 export function LoginClient({ users }: { users: User[] }) {
@@ -24,38 +78,42 @@ export function LoginClient({ users }: { users: User[] }) {
     setError(false)
   }
 
-  const handlePinInput = (num: string) => {
-    if (pin.length < 4) {
-      const newPin = pin + num
-      setPin(newPin)
-      if (newPin.length === 4) {
-        submitLogin(selectedUser!.id, newPin)
-      }
-    }
+  const handlePinInput = (number: string) => {
+    if (pin.length >= 4 || loading) return
+    setError(false)
+    setPin((currentPin) => currentPin + number)
   }
 
-  const handleDelete = () => setPin((prev) => prev.slice(0, -1))
-  const handleClear = () => setPin("")
+  const handleDelete = () => {
+    setError(false)
+    setPin((currentPin) => currentPin.slice(0, -1))
+  }
 
-  const submitLogin = async (userId: number, currentPin: string) => {
+  const handleClear = () => {
+    setError(false)
+    setPin("")
+  }
+
+  const submitLogin = async () => {
+    if (!selectedUser || pin.length !== 4 || loading) return
     setLoading(true)
     setError(false)
-    
+
     try {
-      const res = await signIn("credentials", {
-        userId: userId.toString(),
-        pin: currentPin,
+      const response = await signIn("credentials", {
+        userId: selectedUser.id.toString(),
+        pin,
         redirect: false,
       })
 
-      if (res?.error) {
+      if (response?.error) {
         setError(true)
         setPin("")
-        setTimeout(() => setError(false), 500) // remove shake class after animation
-      } else {
-        router.push("/dashboard")
-        router.refresh()
+        return
       }
+
+      router.replace(getRoleHomePath(selectedUser.role))
+      router.refresh()
     } catch {
       setError(true)
       setPin("")
@@ -66,90 +124,179 @@ export function LoginClient({ users }: { users: User[] }) {
 
   if (!selectedUser) {
     return (
-      <div className="flex flex-col h-full justify-center">
-        <h2 className="text-xl font-heading font-bold mb-6 text-center text-slate-800">เลือกผู้ใช้งาน</h2>
-        <div className="grid grid-cols-2 gap-3">
-          {users.map((user) => (
-            <button
-              key={user.id}
-              onClick={() => handleUserSelect(user)}
-              className="card p-4 hover:border-primary/40 hover:bg-primary/5 transition-all flex flex-col items-center gap-3"
-            >
-              <div className="w-12 h-12 rounded-full bg-blue-50 text-primary flex items-center justify-center text-lg font-bold">
-                {user.name.charAt(0)}
-              </div>
-              <span className="text-sm font-medium text-slate-700">{user.name}</span>
-            </button>
-          ))}
+      <div className="mx-auto w-full max-w-xl">
+        <div>
+          <h2 className="font-heading text-2xl font-extrabold text-slate-950 sm:text-3xl">
+            เลือกผู้ใช้งาน
+          </h2>
         </div>
+
+        <div className="mt-6 grid max-h-[430px] grid-cols-1 gap-3 overflow-y-auto pr-1 scrollbar-thin sm:grid-cols-2">
+          {users.map((user) => {
+            const roleVisual = getRoleVisual(user.role)
+            const RoleIcon = roleVisual.Icon
+
+            return (
+              <button
+                key={user.id}
+                type="button"
+                onClick={() => handleUserSelect(user)}
+                className={cn(
+                  "group flex min-h-28 cursor-pointer items-center gap-4 rounded-2xl border-2 border-slate-200 bg-white p-4 text-left shadow-sm transition-all duration-200 hover:bg-slate-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-4",
+                  roleVisual.borderClass
+                )}
+              >
+                <span className={cn(
+                  "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl",
+                  roleVisual.iconBackground,
+                  roleVisual.iconClass
+                )}>
+                  <RoleIcon className="h-7 w-7" strokeWidth={2.2} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-heading text-base font-extrabold text-slate-900">
+                    {user.name}
+                  </span>
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0 text-slate-300 transition-colors group-hover:text-primary" />
+              </button>
+            )
+          })}
+        </div>
+
+        {users.length === 0 && (
+          <div className="mt-7 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
+            <UserRound className="mx-auto h-9 w-9 text-slate-400" />
+            <p className="mt-3 font-bold text-slate-800">ไม่พบผู้ใช้งานที่เปิดใช้งาน</p>
+          </div>
+        )}
       </div>
     )
   }
 
+  const selectedRole = getRoleVisual(selectedUser.role)
+  const SelectedRoleIcon = selectedRole.Icon
+
   return (
-    <div className="flex flex-col h-full justify-center max-w-xs mx-auto w-full">
+    <form
+      className="mx-auto w-full max-w-sm"
+      onSubmit={(event) => {
+        event.preventDefault()
+        void submitLogin()
+      }}
+    >
       <button
+        type="button"
         onClick={() => setSelectedUser(null)}
-        className="text-primary text-sm font-medium mb-6 text-left hover:underline"
+        disabled={loading}
+        className="inline-flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-200/70 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
       >
-        ← เปลี่ยนผู้ใช้งาน
+        <ArrowLeft className="h-4 w-4" />
+        เปลี่ยนผู้ใช้งาน
       </button>
 
-      <div className="text-center mb-6">
-        <div className="w-16 h-16 mx-auto rounded-full bg-blue-50 text-primary flex items-center justify-center text-2xl font-bold mb-3">
-          {selectedUser.name.charAt(0)}
+      <div className="mt-5 text-center">
+        <div className={cn(
+          "mx-auto flex h-20 w-20 items-center justify-center rounded-3xl shadow-sm",
+          selectedRole.iconBackground,
+          selectedRole.iconClass
+        )}>
+          <SelectedRoleIcon className="h-10 w-10" strokeWidth={2.2} />
         </div>
-        <h2 className="text-lg font-bold text-slate-800">{selectedUser.name}</h2>
-        <p className="text-sm text-slate-500">ใส่รหัส 4 หลัก</p>
+        <h2 className="mt-4 font-heading text-2xl font-extrabold text-slate-950">{selectedUser.name}</h2>
       </div>
 
-      <div className={cn("flex justify-center gap-3 mb-6", error && "animate-shake")}>
-        {[0, 1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className={cn(
-              "w-4 h-4 rounded-full transition-all duration-200",
-              pin.length > i ? "bg-primary scale-110" : "bg-slate-200"
-            )}
-          />
-        ))}
+      <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center justify-center gap-2 text-sm font-bold text-slate-700">
+          <LockKeyhole className="h-4 w-4 text-primary" />
+          กรอก PIN 4 หลัก
+        </div>
+
+        <div
+          className={cn("flex justify-center gap-3", error && "animate-shake")}
+          aria-label={`กรอก PIN แล้ว ${pin.length} จาก 4 หลัก`}
+        >
+          {[0, 1, 2, 3].map((index) => (
+            <div
+              key={index}
+              className={cn(
+                "flex h-12 w-12 items-center justify-center rounded-xl border-2 transition-all duration-200",
+                pin.length > index
+                  ? "border-primary bg-blue-50 shadow-sm shadow-primary/10"
+                  : "border-slate-200 bg-slate-50"
+              )}
+            >
+              {pin.length > index && <span className="h-3 w-3 rounded-full bg-primary" />}
+            </div>
+          ))}
+        </div>
+
+        {error && (
+          <div className="mt-3 text-center" aria-live="polite">
+            <p className="text-sm font-bold text-red-700">PIN ไม่ถูกต้อง กรุณาลองอีกครั้ง</p>
+          </div>
+        )}
       </div>
 
-      {error && <p className="text-destructive text-sm text-center font-medium mb-3">รหัสไม่ถูกต้อง</p>}
-
-      <div className="grid grid-cols-3 gap-3">
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+      <div className="mt-4 grid grid-cols-3 gap-2.5">
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((number) => (
           <button
-            key={num}
-            onClick={() => handlePinInput(num.toString())}
+            key={number}
+            type="button"
+            onClick={() => handlePinInput(number.toString())}
             disabled={loading}
-            className="h-14 text-lg font-medium rounded-md bg-slate-50 hover:bg-slate-100 active:bg-slate-200 transition-colors"
+            className="h-14 cursor-pointer rounded-xl border border-slate-200 bg-white text-lg font-extrabold text-slate-800 shadow-sm transition-colors duration-150 hover:border-primary/40 hover:bg-blue-50 hover:text-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20 active:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {num}
+            {number}
           </button>
         ))}
         <button
+          type="button"
           onClick={handleClear}
-          disabled={loading}
-          className="h-14 text-sm font-medium text-slate-500 rounded-md hover:bg-slate-50 transition-colors"
+          disabled={loading || pin.length === 0}
+          aria-label="ล้าง PIN"
+          title="ล้าง PIN"
+          className="flex min-h-12 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-400/20 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          ล้าง
+          <RotateCcw className="h-5 w-5" />
         </button>
         <button
+          type="button"
           onClick={() => handlePinInput("0")}
           disabled={loading}
-          className="h-14 text-lg font-medium rounded-md bg-slate-50 hover:bg-slate-100 active:bg-slate-200 transition-colors"
+          className="min-h-12 cursor-pointer rounded-xl border border-slate-200 bg-white text-lg font-extrabold text-slate-800 shadow-sm transition-colors duration-150 hover:border-primary/40 hover:bg-blue-50 hover:text-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20 active:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
           0
         </button>
         <button
+          type="button"
           onClick={handleDelete}
-          disabled={loading}
-          className="h-14 text-sm font-medium text-slate-500 rounded-md hover:bg-slate-50 transition-colors"
+          disabled={loading || pin.length === 0}
+          aria-label="ลบตัวเลขล่าสุด"
+          title="ลบตัวเลขล่าสุด"
+          className="flex min-h-12 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-400/20 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          ลบ
+          <Delete className="h-5 w-5" />
         </button>
       </div>
-    </div>
+
+      <button
+        type="submit"
+        disabled={pin.length !== 4 || loading}
+        className="mt-4 inline-flex h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary px-5 text-base font-extrabold text-white shadow-lg shadow-primary/20 transition-colors duration-200 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+      >
+        {loading ? (
+          <>
+            <LoaderCircle className="h-5 w-5 animate-spin" />
+            กำลังเข้าสู่ระบบ...
+          </>
+        ) : (
+          <>
+            <CheckCircle2 className="h-5 w-5" />
+            สำเร็จ
+          </>
+        )}
+      </button>
+    </form>
   )
 }

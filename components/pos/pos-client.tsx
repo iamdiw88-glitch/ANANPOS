@@ -1,12 +1,14 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { ProductSearch } from "./product-search"
 import { CartPanel } from "./cart-panel"
 import { UnitDialog } from "./unit-dialog"
 import { PaymentDialog } from "./payment-dialog"
 import { CustomItemDialog } from "./custom-item-dialog"
+import { ChevronLeft, ShoppingCart } from "lucide-react"
 
 export type CartItem = {
   id: string
@@ -33,7 +35,7 @@ const roundDownToNearestFive = (value: number) => {
   return Math.floor(wholeBaht / 5) * 5
 }
 
-export function POSClient({ initialProducts, categories, customers }: any) {
+export function POSClient({ initialProducts, categories, customers, canCreateCatalog = false }: any) {
   const router = useRouter()
   const [cart, setCart] = useState<CartItem[]>([])
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null)
@@ -41,6 +43,12 @@ export function POSClient({ initialProducts, categories, customers }: any) {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false)
   const [roundingDiscountEnabled, setRoundingDiscountEnabled] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null)
+  const [isCartOpen, setIsCartOpen] = useState(false)
+  const [isPortalReady, setIsPortalReady] = useState(false)
+
+  useEffect(() => {
+    setIsPortalReady(true)
+  }, [])
 
   const addToCart = (item: CartItem) => {
     setCart((currentCart) => {
@@ -89,7 +97,8 @@ export function POSClient({ initialProducts, categories, customers }: any) {
       // F2 = Focus Customer
       else if (e.key === "F2") {
         e.preventDefault()
-        document.getElementById("customer-selector")?.focus()
+        setIsCartOpen(true)
+        window.setTimeout(() => document.getElementById("customer-selector")?.focus(), 50)
       }
       // F5 = New Bill (Clear Cart)
       else if (e.key === "F5") {
@@ -105,12 +114,14 @@ export function POSClient({ initialProducts, categories, customers }: any) {
           e.preventDefault()
           setIsPaymentOpen(true)
         }
+      } else if (e.key === "Escape" && isCartOpen && !isPaymentOpen && !selectedProduct) {
+        setIsCartOpen(false)
       }
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [cart, isPaymentOpen, selectedProduct, clearCart])
+  }, [cart, isCartOpen, isPaymentOpen, selectedProduct, clearCart])
 
   const subtotal = roundMoney(cart.reduce((sum, item) => sum + item.lineTotal, 0))
   const roundedTotal = roundDownToNearestFive(subtotal)
@@ -120,34 +131,90 @@ export function POSClient({ initialProducts, categories, customers }: any) {
   const miscProduct = initialProducts.find((product: any) => product.code === "MISC-001")
 
   return (
-    <div className="flex w-full h-[calc(100vh-64px)] overflow-hidden bg-background">
-      {/* LEFT 60% */}
-      <div className="w-3/5 border-r border-border flex flex-col h-full bg-white z-0">
+    <div className="relative flex h-full min-h-0 w-full overflow-hidden bg-background">
+      {/* Product catalog */}
+      <div className="z-0 flex h-full w-full flex-col bg-white">
         <ProductSearch
           products={initialProducts}
           categories={categories}
+          canCreateCatalog={canCreateCatalog}
           onSelectProduct={setSelectedProduct}
           onCreateCustomItem={setCustomItemName}
         />
       </div>
 
-      {/* RIGHT 40% */}
-      <div className="w-2/5 flex flex-col h-full z-10 shadow-[-2px_0_8px_-2px_rgba(0,0,0,0.06)]">
-        <CartPanel
-          cart={cart}
-          onRemove={removeFromCart}
-          customers={customers}
-          selectedCustomer={selectedCustomer}
-          onSelectCustomer={setSelectedCustomer}
-          subtotal={subtotal}
-          roundingDiscount={roundingDiscount}
-          roundingDiscountEnabled={roundingDiscountEnabled}
-          onRoundingDiscountChange={setRoundingDiscountEnabled}
-          grandTotal={grandTotal}
-          onCreateCustomItem={() => setCustomItemName("")}
-          onCheckout={() => setIsPaymentOpen(true)}
-        />
-      </div>
+      {/* Minimized cart bar */}
+      {isPortalReady && !isCartOpen && createPortal(
+        <button
+          type="button"
+          onClick={() => setIsCartOpen(true)}
+          className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-3 right-3 z-[70] flex cursor-pointer items-center gap-3 rounded-2xl border border-blue-200 bg-white p-3 text-left shadow-xl shadow-slate-900/15 transition-colors duration-200 hover:border-primary hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/25 sm:left-auto sm:right-4 sm:min-w-64"
+          aria-label={`เปิดตะกร้า มี ${cart.length} รายการ ยอดสุทธิ ${grandTotal} บาท`}
+        >
+          <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-md shadow-primary/20">
+            <ShoppingCart className="h-5 w-5" />
+            {cart.length > 0 && (
+              <span className="absolute -right-2 -top-2 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-red-600 px-1 text-[11px] font-extrabold text-white">
+                {cart.length}
+              </span>
+            )}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-extrabold text-slate-900">
+              {cart.length > 0 ? `${cart.length} รายการ` : "ตะกร้าสินค้า"}
+            </span>
+            <span className="mt-0.5 block text-xs font-semibold text-slate-500">กดเพื่อเปิดบิลขาย</span>
+          </span>
+          <span className="text-right">
+            <span className="block font-heading text-lg font-extrabold text-primary">
+              ฿{grandTotal.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+            <ChevronLeft className="ml-auto mt-0.5 h-4 w-4 text-slate-400" />
+          </span>
+        </button>,
+        document.body
+      )}
+
+      {/* Expanded cart drawer */}
+      {isPortalReady && isCartOpen && createPortal(
+        <div className="fixed inset-0 z-[90]" role="presentation">
+          <button
+            type="button"
+            aria-label="ย่อตะกร้า"
+            onClick={() => setIsCartOpen(false)}
+            className="absolute inset-0 cursor-pointer bg-slate-950/30 backdrop-blur-sm"
+          />
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label="ตะกร้าสินค้า"
+            className="absolute inset-y-0 right-0 flex w-full max-w-md flex-col overflow-hidden border-l border-slate-200 bg-white shadow-2xl animate-in slide-in-from-right duration-200"
+          >
+            <CartPanel
+              cart={cart}
+              onRemove={removeFromCart}
+              customers={customers}
+              selectedCustomer={selectedCustomer}
+              onSelectCustomer={setSelectedCustomer}
+              subtotal={subtotal}
+              roundingDiscount={roundingDiscount}
+              roundingDiscountEnabled={roundingDiscountEnabled}
+              onRoundingDiscountChange={setRoundingDiscountEnabled}
+              grandTotal={grandTotal}
+              onCreateCustomItem={() => {
+                setIsCartOpen(false)
+                setCustomItemName("")
+              }}
+              onCheckout={() => {
+                setIsCartOpen(false)
+                setIsPaymentOpen(true)
+              }}
+              onMinimize={() => setIsCartOpen(false)}
+            />
+          </aside>
+        </div>,
+        document.body
+      )}
 
       {selectedProduct && (
         <UnitDialog 
@@ -183,6 +250,7 @@ export function POSClient({ initialProducts, categories, customers }: any) {
           onClose={() => setIsPaymentOpen(false)}
           onSuccess={() => {
             clearCart()
+            setIsCartOpen(false)
             setIsPaymentOpen(false)
             router.refresh()
             // print receipt will trigger here in the future

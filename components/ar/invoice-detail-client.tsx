@@ -16,7 +16,7 @@ export function InvoiceDetailClient({ invoice }: { invoice: any }) {
   return (
     <div className="flex flex-col h-full gap-4 max-w-5xl mx-auto w-full">
       {/* Header & Actions (Hidden in Print) */}
-      <div className="flex justify-between items-center print:hidden">
+      <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center print:hidden">
         <div className="flex items-center gap-3">
           <Link href="/ar" className="p-2 bg-white rounded-full hover:bg-slate-100 transition-colors shadow-sm border border-border">
             <ArrowLeft className="w-4 h-4 text-slate-600" />
@@ -27,7 +27,7 @@ export function InvoiceDetailClient({ invoice }: { invoice: any }) {
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={handlePrint}>
             <Printer className="w-4 h-4" /> พิมพ์เอกสาร
           </Button>
@@ -42,13 +42,13 @@ export function InvoiceDetailClient({ invoice }: { invoice: any }) {
       </div>
 
       {/* A4 Printable Area */}
-      <div className="bg-white rounded-lg shadow-sm border border-border p-10 print:p-0 print:border-none print:shadow-none mx-auto w-full max-w-[210mm] min-h-[297mm]">
+      <div className="mx-auto w-full max-w-[210mm] rounded-lg border border-border bg-white p-4 shadow-sm sm:min-h-[297mm] sm:p-8 lg:p-10 print:min-h-[297mm] print:border-none print:p-0 print:shadow-none">
 
         <div className="text-center mb-8">
           <h2 className="text-xl font-bold text-slate-900">ใบวางบิล / INVOICE</h2>
         </div>
 
-        <div className="flex justify-between mb-8">
+        <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row">
           <div>
             <p className="font-bold text-slate-800">{invoice.customer.name}</p>
             <p className="text-sm text-slate-600 mt-1">{invoice.customer.address || "ไม่ระบุที่อยู่"}</p>
@@ -68,7 +68,8 @@ export function InvoiceDetailClient({ invoice }: { invoice: any }) {
         </div>
 
         {/* Bills Table */}
-        <table className="w-full text-left border-collapse mb-8 text-sm">
+        <div className="touch-scroll mb-8 overflow-x-auto print:overflow-visible">
+        <table className="w-full min-w-[640px] border-collapse text-left text-sm print:min-w-0">
           <thead>
             <tr className="bg-slate-100 border-y border-slate-200 text-slate-800">
               <th className="p-2.5 border-r border-slate-200 w-12 text-center">ลำดับ</th>
@@ -100,6 +101,7 @@ export function InvoiceDetailClient({ invoice }: { invoice: any }) {
             </tr>
           </tfoot>
         </table>
+        </div>
 
         {/* Status / Balance */}
         <div className="flex justify-between items-center mb-12 text-sm">
@@ -121,7 +123,7 @@ export function InvoiceDetailClient({ invoice }: { invoice: any }) {
         </div>
 
         {/* Signatures */}
-        <div className="grid grid-cols-2 gap-16 mt-16 print:mt-32">
+        <div className="mt-16 grid grid-cols-1 gap-12 sm:grid-cols-2 sm:gap-16 print:mt-32 print:grid-cols-2">
           <div className="text-center">
             <div className="border-b border-slate-400 w-48 mx-auto mb-2 h-8"></div>
             <p className="text-sm text-slate-600">ผู้รับบิล (ลูกค้า)</p>

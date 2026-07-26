@@ -120,9 +120,9 @@ export function SettingsClient({ initialUsers, initialUnits, initialSettings }: 
   ]
 
   return (
-    <div className="flex h-[calc(100vh-140px)] gap-4">
+    <div className="flex min-h-[calc(100dvh-8rem)] flex-col gap-3 lg:h-[calc(100dvh-8.75rem)] lg:flex-row lg:gap-4">
       {/* Sidebar Tabs */}
-      <div className="w-56 card p-2 flex flex-col gap-1 shrink-0">
+      <div className="touch-scroll card flex w-full shrink-0 gap-1 overflow-x-auto p-2 lg:w-56 lg:flex-col lg:overflow-visible">
         {tabs.map(tab => {
           const Icon = tab.icon
           return (
@@ -130,7 +130,7 @@ export function SettingsClient({ initialUsers, initialUnits, initialSettings }: 
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={cn(
-                "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-semibold transition-colors",
+                "flex shrink-0 cursor-pointer items-center gap-2.5 whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold transition-colors",
                 activeTab === tab.key ? "bg-blue-50 text-primary" : "text-slate-600 hover:bg-slate-50"
               )}
             >
@@ -141,7 +141,7 @@ export function SettingsClient({ initialUsers, initialUnits, initialSettings }: 
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 card p-0 overflow-hidden flex flex-col">
+      <div className="card flex min-h-[32rem] min-w-0 flex-1 flex-col overflow-hidden p-0">
 
         {/* TAB 1: INFO */}
         {activeTab === "info" && (
@@ -166,7 +166,7 @@ export function SettingsClient({ initialUsers, initialUnits, initialSettings }: 
                   className="input h-24 resize-none"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">เบอร์โทรศัพท์</label>
                   <Input
@@ -185,7 +185,7 @@ export function SettingsClient({ initialUsers, initialUnits, initialSettings }: 
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-border mt-4 grid grid-cols-2 gap-4">
+              <div className="mt-4 grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">เปิดใช้งาน VAT?</label>
                   <Select

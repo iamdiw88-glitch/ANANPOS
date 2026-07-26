@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic"
 export default async function NewProductPage() {
   const session = await auth()
   if (!session?.user?.id) redirect("/login")
-  if (!hasPermission(session.user.role, "product:manage")) redirect("/inventory")
+  if (!hasPermission(session.user.role, "catalog:create")) redirect("/inventory")
 
   const categories = await prisma.category.findMany({ where: { isActive: true }, orderBy: { sortOrder: 'asc' } })
   const units = await prisma.unit.findMany({ orderBy: { name: 'asc' } })

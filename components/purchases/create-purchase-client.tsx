@@ -118,7 +118,7 @@ export function CreatePurchaseClient({ suppliers, products, currentUserId }: any
   return (
     <div className="flex flex-col h-full gap-4 max-w-5xl mx-auto w-full">
       {/* Header & Actions */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
         <div className="flex items-center gap-3">
           <Link href="/purchases" className="p-2 bg-white rounded-md border border-border hover:bg-slate-100 transition-colors shadow-sm">
             <ArrowLeft className="w-4 h-4 text-slate-600" />
@@ -137,7 +137,7 @@ export function CreatePurchaseClient({ suppliers, products, currentUserId }: any
         </Button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Left Form */}
         <div className="col-span-1 space-y-4">
           <Card className="p-4 space-y-3">
@@ -187,7 +187,7 @@ export function CreatePurchaseClient({ suppliers, products, currentUserId }: any
         </div>
 
         {/* Right Panel: Items */}
-        <Card className="col-span-2 flex flex-col h-[calc(100vh-200px)] p-0 overflow-hidden">
+        <Card className="flex min-h-[28rem] flex-col overflow-hidden p-0 lg:col-span-2 lg:h-[calc(100dvh-200px)]">
           <div className="p-3 border-b border-border">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -220,13 +220,13 @@ export function CreatePurchaseClient({ suppliers, products, currentUserId }: any
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="touch-scroll flex-1 overflow-auto">
             {items.length === 0 ? (
               <div className="h-full flex items-center justify-center text-slate-400">
                 <p className="text-sm">ค้นหาสินค้าด้านบนเพื่อเพิ่มรายการ</p>
               </div>
             ) : (
-              <table className="table-dense">
+              <table className="table-dense min-w-[720px]">
                 <thead>
                   <tr>
                     <th>สินค้า</th>
