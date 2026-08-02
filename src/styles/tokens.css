@@ -1,0 +1,91 @@
+/* src/styles/tokens.css - ANANPOS Design Tokens v2.0 */
+
+:root {
+  /* ---- Surface ---- */
+  --surface:            #FFFFFF;   /* การ์ด */
+  --surface-sunken:     #F3F5F8;   /* พื้นหลังหน้า */
+  --surface-inverse:    #101722;   /* แถบสรุป, จอแสดงเงินทอน */
+  --hairline:           #DFE4EC;
+  --hairline-strong:    #C3CBD8;
+
+  /* ---- Ink (คอนทราสต์สูงสำหรับแสงจ้า) ---- */
+  --ink:                #0B1220;   /* หัวข้อ/ตัวเลขหลัก */
+  --ink-body:           #2B3648;
+  --ink-muted:          #5D6B80;   /* ต่ำสุดที่ยอมให้ใช้ กับ text ≥14px เท่านั้น */
+  --ink-on-inverse:     #F7F9FC;
+
+  /* ---- Brand / Action ---- */
+  --brand:              #0B63CE;   /* ผ่าน AA บนพื้นขาว */
+  --brand-hover:        #0A57B4;
+  --brand-press:        #084A99;
+  --brand-tint:         #E8F1FD;
+
+  /* ---- Semantic (ความหมายตายตัวทั้งระบบ) ---- */
+  --cash:               #0F7A4D;   /* เงินสด / รับเงินแล้ว / ส่งสำเร็จ / สต็อกปกติ */
+  --cash-tint:          #E7F5EE;
+  --credit:             #A85B00;   /* เงินเชื่อ / รอดำเนินการ / ใกล้ครบวงเงิน / ใกล้หมด */
+  --credit-tint:        #FDF2E3;
+  --overdue:            #BE2A2A;   /* เกินกำหนด / เกินวงเงิน / สต็อกติดลบ / COD ค้างรับ */
+  --overdue-tint:       #FCEDED;
+  --info:               #0B63CE;
+  --neutral:            #5D6B80;   /* ระงับ / ปิดใช้งาน */
+
+  /* ---- Radius / Elevation / Motion ---- */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+  --shadow-card:  0 1px 2px rgba(16,23,34,.06), 0 1px 3px rgba(16,23,34,.04);
+  --shadow-sheet: 0 -8px 32px rgba(16,23,34,.18);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+  --ease: cubic-bezier(.2,.8,.2,1);
+
+  /* ---- Touch metrics (ค่าเริ่มต้น = โหมดสัมผัส) ---- */
+  --tap-min:      48px;   /* ทุก interactive element */
+  --tap-primary:  56px;   /* ปุ่มหลัก */
+  --tap-numpad:   64px;   /* ปุ่ม numpad / ปุ่มยืนยันการขาย */
+  --row-h:        64px;   /* แถวรายการ */
+  --gap:          12px;
+  --pad-card:     16px;
+
+  /* ---- Spacing scale (4pt base) ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* ---- Type ---- */
+  --font-ui:   "IBM Plex Sans Thai Looped", "LINE Seed Sans TH", "Noto Sans Thai", system-ui, sans-serif;
+  --font-num:  "IBM Plex Sans", ui-monospace, monospace;  /* ตัวเลขเท่านั้น */
+  --fs-display: 34px;
+  --lh-display: 1.30;
+  --fs-title:   22px;
+  --lh-title:   1.45;
+  --fs-metric:  28px;
+  --lh-metric:  1.25;
+  --fs-body:    16px;
+  --lh-body:    1.70;
+  --fs-label:   15px;
+  --lh-label:   1.55;
+  --fs-caption: 14px;
+  --lh-caption: 1.55;
+}
+
+/* Compact Density Mode Override */
+[data-density="compact"] {
+  --tap-min: 36px;
+  --tap-primary: 40px;
+  --tap-numpad: 48px;
+  --row-h: 40px;
+  --gap: 8px;
+  --pad-card: 12px;
+  --fs-body: 15px;
+  --fs-caption: 13px;
+  --lh-body: 1.6;
+}

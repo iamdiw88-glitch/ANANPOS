@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { apiErrorResponse } from "@/lib/api"
+import { apiErrorResponse, requireApiSession } from "@/lib/api"
 
 export async function GET() {
   try {
+    await requireApiSession()
     const vehicles = await prisma.vehicle.findMany({
       where: { isActive: true, status: "AVAILABLE", vehicleType: { in: ["TRUCK", "PICKUP", "MOTORCYCLE"] } },
       select: {

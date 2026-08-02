@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client"
+import { ApiError } from "@/lib/api"
 import { prisma } from "@/lib/prisma"
 
 const INITIAL_DIESEL_STOCK_LITERS = new Prisma.Decimal(1000)
@@ -68,7 +69,7 @@ export async function recordDieselOut({
   const nextBalance = currentBalance.sub(liters)
 
   if (nextBalance.lt(0)) {
-    throw new Error("น้ำมันดีเซลในสต็อกไม่พอ")
+    throw new ApiError("น้ำมันดีเซลในสต็อกไม่พอ", 400)
   }
 
   await tx.dieselStockLedger.create({
@@ -121,4 +122,39 @@ export async function recordDieselIn({
   })
 
   return nextBalance
+}
+
+export async function adjustDieselStock({
+  tx,
+  balanceLiters,
+  note,
+  recordedAt,
+  createdById,
+}: {
+  tx: Prisma.TransactionClient
+  balanceLiters: Prisma.Decimal
+  note?: string | null
+  recordedAt: Date
+  createdById: number
+}) {
+  await ensureDieselOpeningBalance(tx)
+  const latest = await tx.dieselStockLedger.findFirst({
+    orderBy: { id: "desc" },
+    select: { balanceAfter: true },
+  })
+  const currentBalance = latest?.balanceAfter || INITIAL_DIESEL_STOCK_LITERS
+  const difference = balanceLiters.sub(currentBalance)
+
+  await tx.dieselStockLedger.create({
+    data: {
+      type: "ADJUST",
+      liters: difference,
+      balanceAfter: balanceLiters,
+      note: note?.trim() || "ปรับยอดสต็อกน้ำมันด้วยตนเอง",
+      recordedAt,
+      createdById,
+    },
+  })
+
+  return balanceLiters
 }

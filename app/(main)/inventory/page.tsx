@@ -62,7 +62,7 @@ export default async function InventoryPage() {
           ) : null
         }
       />
-      <InventoryClient products={products} categories={categories} canAdjustStock={canAdjustStock} />
+      <InventoryClient products={products} categories={categories} canAdjustStock={canAdjustStock} canManageCatalog={canCreateCatalog} />
     </div>
   )
 }

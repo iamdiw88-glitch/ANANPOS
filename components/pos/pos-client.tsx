@@ -9,6 +9,9 @@ import { UnitDialog } from "./unit-dialog"
 import { PaymentDialog } from "./payment-dialog"
 import { CustomItemDialog } from "./custom-item-dialog"
 import { ChevronLeft, ShoppingCart } from "lucide-react"
+import { toast } from "sonner"
+import { useBarcodeScanner } from "@/hooks/use-barcode-scanner"
+import { usePrintReceipt } from "@/hooks/use-print-receipt"
 
 export type CartItem = {
   id: string
@@ -35,7 +38,7 @@ const roundDownToNearestFive = (value: number) => {
   return Math.floor(wholeBaht / 5) * 5
 }
 
-export function POSClient({ initialProducts, categories, customers, canCreateCatalog = false }: any) {
+export function POSClient({ initialProducts, categories, customers, settings = {}, canCreateCatalog = false }: any) {
   const router = useRouter()
   const [cart, setCart] = useState<CartItem[]>([])
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null)
@@ -46,9 +49,45 @@ export function POSClient({ initialProducts, categories, customers, canCreateCat
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [isPortalReady, setIsPortalReady] = useState(false)
 
+  const { printReceipt } = usePrintReceipt()
+
   useEffect(() => {
     setIsPortalReady(true)
   }, [])
+
+  useBarcodeScanner(async (barcodeValue) => {
+    try {
+      const res = await fetch(`/api/products/lookup-barcode/${encodeURIComponent(barcodeValue)}`)
+      if (res.ok) {
+        const data = await res.json()
+        const product = data.data
+        if (product) {
+          const defaultUnit = product.productUnits?.[0]
+          if (defaultUnit) {
+            addToCart({
+              id: `${product.id}-${defaultUnit.id}-${Date.now()}`,
+              productId: product.id,
+              productUnitId: defaultUnit.id,
+              name: product.name,
+              unitName: defaultUnit.unit?.name || "ชิ้น",
+              quantity: 1,
+              quantityBase: defaultUnit.conversionRate || 1,
+              unitPrice: defaultUnit.price,
+              lineTotal: defaultUnit.price,
+              isStockItem: product.isStockItem,
+            })
+            toast.success(`สแกนเจอ: ${product.name}`)
+          } else {
+            setSelectedProduct(product)
+          }
+        }
+      } else {
+        toast.error(`ไม่พบสินค้าสำหรับบาร์โค้ด "${barcodeValue}"`)
+      }
+    } catch {
+      toast.error("ไม่สามารถค้นหาสินค้าจากบาร์โค้ดได้")
+    }
+  })
 
   const addToCart = (item: CartItem) => {
     setCart((currentCart) => {
@@ -126,8 +165,14 @@ export function POSClient({ initialProducts, categories, customers, canCreateCat
   const subtotal = roundMoney(cart.reduce((sum, item) => sum + item.lineTotal, 0))
   const roundedTotal = roundDownToNearestFive(subtotal)
   const roundingDiscount = roundingDiscountEnabled ? roundMoney(Math.max(0, subtotal - roundedTotal)) : 0
-  const vatAmount = 0
-  const grandTotal = roundMoney(subtotal - roundingDiscount)
+  // Keep the amount shown at the POS in sync with the server-side setting.
+  // The API recalculates this value authoritatively when the sale is saved.
+  const vatRate = settings.isVatEnabled === "true"
+    ? Math.max(0, Number(settings.vatRate) || 0) / 100
+    : 0
+  const taxableTotal = roundMoney(subtotal - roundingDiscount)
+  const vatAmount = roundMoney(taxableTotal * vatRate)
+  const grandTotal = roundMoney(taxableTotal + vatAmount)
   const miscProduct = initialProducts.find((product: any) => product.code === "MISC-001")
 
   return (
@@ -248,12 +293,14 @@ export function POSClient({ initialProducts, categories, customers, canCreateCat
           vatAmount={vatAmount}
           grandTotal={grandTotal}
           onClose={() => setIsPaymentOpen(false)}
-          onSuccess={() => {
+          onSuccess={(saleId?: any) => {
             clearCart()
             setIsCartOpen(false)
             setIsPaymentOpen(false)
             router.refresh()
-            // print receipt will trigger here in the future
+            if (saleId) {
+              printReceipt(saleId)
+            }
           }}
         />
       )}

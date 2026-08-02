@@ -22,15 +22,19 @@ import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Button } from "@/components/ui/button"
+import { ImageUpload } from "@/components/ui/image-upload"
+import { CategoryCreateButton } from "./category-create-button"
 
 export function InventoryClient({
   products,
   categories,
   canAdjustStock = false,
+  canManageCatalog = false,
 }: {
   products: any[]
   categories: any[]
   canAdjustStock?: boolean
+  canManageCatalog?: boolean
 }) {
   const router = useRouter()
   const [search, setSearch] = useState("")
@@ -53,6 +57,102 @@ export function InventoryClient({
   const [quickStockError, setQuickStockError] = useState("")
   const [stockActionLoading, setStockActionLoading] = useState<"quick" | "adjust" | "damage" | null>(null)
 
+  const [currentParentId, setCurrentParentId] = useState<number | null>(null)
+  const [editingCategory, setEditingCategory] = useState<any | null>(null)
+  const [editName, setEditName] = useState("")
+  const [editSortOrder, setEditSortOrder] = useState(0)
+  const [editImageUrl, setEditImageUrl] = useState("")
+  const [editParentId, setEditParentId] = useState<number | "">("")
+  const [editCategoryError, setEditCategoryError] = useState("")
+  const [isSavingCategory, setIsSavingCategory] = useState(false)
+
+  const startEditCategory = (category: any) => {
+    setEditingCategory(category)
+    setEditName(category.name)
+    setEditSortOrder(category.sortOrder || 0)
+    setEditImageUrl(category.imageUrl || "")
+    setEditParentId(category.parentId || "")
+    setEditCategoryError("")
+  }
+
+  const handleEditCategorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingCategory) return
+    setIsSavingCategory(true)
+    setEditCategoryError("")
+
+    try {
+      const res = await fetch(`/api/categories/${editingCategory.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editName,
+          sortOrder: editSortOrder,
+          imageUrl: editImageUrl || null,
+          parentId: editParentId || null,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        setEditCategoryError(data.error || "แก้ไขหมวดหมู่ไม่สำเร็จ")
+        return
+      }
+
+      toast.success("แก้ไขหมวดหมู่สำเร็จ")
+      setEditingCategory(null)
+      router.refresh()
+    } catch {
+      setEditCategoryError("เชื่อมต่อระบบไม่สำเร็จ")
+    } finally {
+      setIsSavingCategory(false)
+    }
+  }
+
+  const handleDeleteCategory = async () => {
+    if (!editingCategory) return
+    if (!confirm(`ยืนยันลบหมวดหมู่ "${editingCategory.name}" หรือไม่? สินค้าในหมวดหมู่นี้จะไม่ถูกลบ`)) return
+    setIsSavingCategory(true)
+    setEditCategoryError("")
+
+    try {
+      const res = await fetch(`/api/categories/${editingCategory.id}`, {
+        method: "DELETE",
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        setEditCategoryError(data.error || "ลบหมวดหมู่ไม่สำเร็จ")
+        return
+      }
+
+      toast.success("ลบหมวดหมู่สำเร็จ")
+      setEditingCategory(null)
+      router.refresh()
+    } catch {
+      setEditCategoryError("เชื่อมต่อระบบไม่สำเร็จ")
+    } finally {
+      setIsSavingCategory(false)
+    }
+  }
+
+  const getDescendantCategoryIds = (catId: number): number[] => {
+    const ids = [catId]
+    const queue = [catId]
+    while (queue.length > 0) {
+      const current = queue.shift()
+      const children = categories.filter(c => c.parentId === current)
+      for (const child of children) {
+        ids.push(child.id)
+        queue.push(child.id)
+      }
+    }
+    return ids
+  }
+
+  const currentCategoryIds = useMemo(() => {
+    if (currentParentId === null) return []
+    return getDescendantCategoryIds(currentParentId)
+  }, [currentParentId, categories])
+
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
       const normalizedSearch = search.trim().toLocaleLowerCase("th")
@@ -60,11 +160,37 @@ export function InventoryClient({
         p.name.toLocaleLowerCase("th").includes(normalizedSearch) ||
         p.code.toLocaleLowerCase("th").includes(normalizedSearch) ||
         p.searchTags?.toLocaleLowerCase("th").includes(normalizedSearch)
-      const matchCat = catFilter === "ALL" || catFilter === null || p.categoryId === catFilter
+      
+      let matchCat = true
+      if (catFilter === "ALL") {
+        matchCat = true
+      } else if (catFilter !== null) {
+        matchCat = p.categoryId === catFilter
+      } else if (currentParentId !== null) {
+        matchCat = currentCategoryIds.includes(p.categoryId)
+      } else {
+        matchCat = true
+      }
       return matchSearch && matchCat
     })
-  }, [products, search, catFilter])
+  }, [products, search, catFilter, currentParentId, currentCategoryIds])
+
   const showCategoryBrowser = !search.trim() && catFilter === null
+
+  const breadcrumbs = useMemo(() => {
+    const crumbs = []
+    let currId = currentParentId
+    while (currId) {
+      const cat = categories.find(c => c.id === currId)
+      if (cat) {
+        crumbs.unshift(cat)
+        currId = cat.parentId
+      } else {
+        break
+      }
+    }
+    return crumbs
+  }, [currentParentId, categories])
   const quickStockProduct = products.find((product) => product.id === quickStockProductId)
 
   const openHistory = async (product: any) => {
@@ -224,58 +350,221 @@ export function InventoryClient({
                 ดูจำนวนสินค้าและจัดการสต็อกแยกตามหมวดหมู่
               </p>
             </div>
-            {canAdjustStock && (
-              <Button type="button" onClick={openQuickStock} disabled={products.length === 0} className="shrink-0">
-                <PackagePlus className="h-4 w-4" />
-                เพิ่มสต็อก
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {canManageCatalog && (
+                <CategoryCreateButton categories={categories} defaultParentId={currentParentId} />
+              )}
+              {canAdjustStock && (
+                <Button type="button" onClick={openQuickStock} disabled={products.length === 0} className="shrink-0">
+                  <PackagePlus className="h-4 w-4" />
+                  เพิ่มสต็อก
+                </Button>
+              )}
+            </div>
           </div>
+
+          {/* Breadcrumbs for Nested Browse */}
+          {currentParentId !== null && (
+            <div className="mb-4 flex flex-wrap items-center gap-1.5 text-sm bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
+              <button
+                type="button"
+                onClick={() => setCurrentParentId(null)}
+                className="font-bold text-primary hover:underline cursor-pointer flex items-center"
+              >
+                หมวดหมู่ทั้งหมด
+              </button>
+              {breadcrumbs.map((crumb, idx) => {
+                const isLast = idx === breadcrumbs.length - 1
+                return (
+                  <div key={crumb.id} className="flex items-center gap-1.5">
+                    <span className="text-slate-400 font-medium">/</span>
+                    {isLast ? (
+                      <span className="font-extrabold text-slate-800">{crumb.name}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setCurrentParentId(crumb.id)}
+                        className="font-bold text-primary hover:underline cursor-pointer"
+                      >
+                        {crumb.name}
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            <button
-              type="button"
-              onClick={() => setCatFilter("ALL")}
-              className="group relative aspect-[4/3] min-h-32 cursor-pointer overflow-hidden rounded-xl border border-blue-200 bg-gradient-to-br from-blue-700 to-blue-500 text-left shadow-sm transition-all duration-200 hover:border-blue-700 hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/25"
-            >
-              <Boxes className="absolute -right-5 -top-5 h-24 w-24 text-white/10 transition-transform duration-300 group-hover:-translate-x-1 group-hover:translate-y-1" />
-              <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/80 via-slate-950/30 to-transparent p-3 pt-10 text-white">
-                <span className="block font-heading font-extrabold">สินค้าทั้งหมด</span>
-                <span className="mt-0.5 block text-xs font-semibold text-blue-100">{products.length} รายการ</span>
-              </span>
-            </button>
+            {currentParentId === null && (
+              <button
+                type="button"
+                onClick={() => setCatFilter("ALL")}
+                className="group relative aspect-[4/3] min-h-32 cursor-pointer overflow-hidden rounded-xl border border-blue-200 bg-gradient-to-br from-blue-700 to-blue-500 text-left shadow-sm transition-all duration-200 hover:border-blue-700 hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/25"
+              >
+                <Boxes className="absolute -right-5 -top-5 h-24 w-24 text-white/10 transition-transform duration-300 group-hover:-translate-x-1 group-hover:translate-y-1" />
+                <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/80 via-slate-950/30 to-transparent p-3 pt-10 text-white">
+                  <span className="block font-heading font-extrabold">สินค้าทั้งหมด</span>
+                  <span className="mt-0.5 block text-xs font-semibold text-blue-100">{products.length} รายการ</span>
+                </span>
+              </button>
+            )}
 
-            {categories.map((category) => {
-              const categoryCount = products.filter((product) => product.categoryId === category.id).length
-              return (
-                <button
-                  type="button"
-                  key={category.id}
-                  onClick={() => setCatFilter(category.id)}
-                  className="group relative aspect-[4/3] min-h-32 cursor-pointer overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition-all duration-200 hover:border-primary/60 hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/25"
-                >
-                  {category.imageUrl ? (
-                    <Image
-                      src={category.imageUrl}
-                      alt=""
-                      fill
-                      unoptimized
-                      sizes="(max-width: 640px) 50vw, 20vw"
-                      className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                    />
-                  ) : (
-                    <span className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-100 to-blue-100 text-primary/40">
-                      <ImageIcon className="h-10 w-10" />
-                    </span>
-                  )}
-                  <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/90 via-slate-950/60 to-transparent p-3 pt-10 text-white">
-                    <span className="block line-clamp-2 font-heading font-extrabold">{category.name}</span>
-                    <span className="mt-0.5 block text-xs font-semibold text-slate-200">{categoryCount} รายการ</span>
-                  </span>
-                </button>
-              )
-            })}
+            {categories
+              .filter((cat) => cat.parentId === currentParentId)
+              .map((category) => {
+                const descendantIds = getDescendantCategoryIds(category.id)
+                const categoryCount = products.filter((product) => descendantIds.includes(product.categoryId)).length
+                return (
+                  <div
+                    key={category.id}
+                    className="group relative aspect-[4/3] min-h-32 overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition-all duration-200 hover:border-primary/60 hover:shadow-lg"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setCurrentParentId(category.id)}
+                      className="absolute inset-0 w-full h-full text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/25 cursor-pointer"
+                    >
+                      {category.imageUrl ? (
+                        <Image
+                          src={category.imageUrl}
+                          alt=""
+                          fill
+                          unoptimized
+                          sizes="(max-width: 640px) 50vw, 20vw"
+                          className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                        />
+                      ) : (
+                        <span className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-100 to-blue-100 text-primary/40">
+                          <ImageIcon className="h-10 w-10" />
+                        </span>
+                      )}
+                      <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/90 via-slate-950/60 to-transparent p-3 pt-10 text-white">
+                        <span className="block line-clamp-2 font-heading font-extrabold">{category.name}</span>
+                        <span className="mt-0.5 block text-xs font-semibold text-slate-200">{categoryCount} รายการ</span>
+                      </span>
+                    </button>
+
+                    {/* Edit button in top right of card (visible on hover) */}
+                    {canManageCatalog && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          startEditCategory(category)
+                        }}
+                        className="absolute right-2 top-2 z-10 rounded-md bg-slate-900/60 p-1.5 text-white backdrop-blur-xs transition hover:bg-slate-900 focus-visible:outline-none cursor-pointer md:opacity-0 md:group-hover:opacity-100"
+                        title="แก้ไขหมวดหมู่"
+                      >
+                        <Settings2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
           </div>
+
+          {/* Render products below subcategories inside category */}
+          {currentParentId !== null && (
+            <div className="mt-8 border-t border-slate-200 pt-6 bg-white px-4 py-5 rounded-xl">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="font-heading text-lg font-extrabold text-slate-800">
+                  รายการสินค้าใน {categories.find(c => c.id === currentParentId)?.name}
+                </h3>
+                <span className="text-xs font-semibold text-slate-500">{filteredProducts.length} รายการ</span>
+              </div>
+              <Table>
+                <THead>
+                  <tr>
+                    <TH>รหัส</TH>
+                    <TH>ชื่อสินค้า</TH>
+                    <TH>หมวดหมู่</TH>
+                    <TH className="text-right">คงเหลือ</TH>
+                    <TH className="text-right">จุดสั่งซื้อ</TH>
+                    <TH>สถานะ</TH>
+                    <TH className="text-center">จัดการสต็อก</TH>
+                    <TH className="text-center">ประวัติ</TH>
+                  </tr>
+                </THead>
+                <TBody>
+                  {filteredProducts.map((p) => {
+                    const qty = p.stockBalance?.quantityOnHand || 0
+                    const isOut = qty <= 0
+                    const isLow = !isOut && qty <= p.reorderPoint
+
+                    return (
+                      <TR key={p.id}>
+                        <TD className="text-slate-500">{p.code}</TD>
+                        <TD>
+                          <div className="flex min-w-52 items-center gap-3">
+                            <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+                              {p.imageUrl ? (
+                                <Image
+                                  src={p.imageUrl}
+                                  alt=""
+                                  fill
+                                  unoptimized
+                                  sizes="44px"
+                                  className="object-cover"
+                                />
+                              ) : (
+                                <span className="absolute inset-0 flex items-center justify-center text-slate-400">
+                                  <ImageIcon className="h-5 w-5" />
+                                </span>
+                              )}
+                            </div>
+                            <span className="font-semibold text-slate-800">{p.name}</span>
+                          </div>
+                        </TD>
+                        <TD className="text-slate-600">{p.category?.name || "-"}</TD>
+                        <TD className={`text-right font-semibold ${isOut ? "text-red-700" : isLow ? "text-amber-600" : "text-slate-800"}`}>
+                          {qty} {p.baseUnit?.name}
+                        </TD>
+                        <TD className="text-right text-slate-500">{p.reorderPoint}</TD>
+                        <TD>
+                          {isOut ? (
+                            <Badge variant="danger">
+                              <AlertTriangle className="h-3 w-3" /> หมด
+                            </Badge>
+                          ) : isLow ? (
+                            <Badge variant="warning">
+                              <AlertTriangle className="h-3 w-3" /> ใกล้หมด
+                            </Badge>
+                          ) : (
+                            <Badge variant="success">
+                              <Package className="h-3 w-3" /> ปกติ
+                            </Badge>
+                          )}
+                        </TD>
+                        <TD className="text-center">
+                          {canAdjustStock ? (
+                            <div className="flex items-center justify-center gap-2">
+                              <button onClick={() => setAdjustProduct(p)} className="cursor-pointer rounded-md p-1.5 text-blue-600 transition-colors hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" title="ปรับสต็อก">
+                                <Settings2 className="h-4 w-4" />
+                              </button>
+                              <button onClick={() => setDamageProduct(p)} className="cursor-pointer rounded-md p-1.5 text-red-600 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500" title="ตัดของเสีย">
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400">-</span>
+                          )}
+                        </TD>
+                        <TD className="text-center">
+                          <button onClick={() => openHistory(p)} className="cursor-pointer rounded-md p-1.5 text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" title="ดูประวัติความเคลื่อนไหว">
+                            <History className="h-4 w-4" />
+                          </button>
+                        </TD>
+                      </TR>
+                    )
+                  })}
+                  {filteredProducts.length === 0 && (
+                    <tr><td colSpan={8}><EmptyState icon={Package} title="ไม่พบรายการสินค้า" /></td></tr>
+                  )}
+                </TBody>
+              </Table>
+            </div>
+          )}
         </section>
       ) : (
         <>
@@ -286,6 +575,7 @@ export function InventoryClient({
                 onClick={() => {
                   setSearch("")
                   setCatFilter(null)
+                  setCurrentParentId(null)
                 }}
                 className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 text-sm font-bold text-slate-700 transition-colors hover:border-primary/40 hover:bg-blue-50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
@@ -624,6 +914,121 @@ export function InventoryClient({
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {editingCategory && (
+        <div className="modal-overlay" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setEditingCategory(null)
+        }}>
+          <form
+            onSubmit={handleEditCategorySubmit}
+            className="modal max-h-[calc(100dvh-2rem)] max-w-lg overflow-y-auto"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="category-edit-title"
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
+              <div>
+                <h2 id="category-edit-title" className="font-heading text-lg font-extrabold text-slate-900">
+                  แก้ไขหมวดหมู่
+                </h2>
+                <p className="mt-0.5 text-sm text-slate-600">แก้ไขข้อมูลหรือรูปภาพของหมวดหมู่</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingCategory(null)}
+                aria-label="ปิด"
+                className="cursor-pointer rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-5 p-5">
+              <ImageUpload
+                value={editImageUrl}
+                onChange={setEditImageUrl}
+                label="รูปหมวดหมู่"
+                helpText="แนะนำรูปแนวนอนหรือสี่เหลี่ยม ระบบจะครอบให้พอดีกับการ์ด"
+              />
+
+              <div>
+                <label htmlFor="category-edit-name" className="mb-1.5 block text-sm font-semibold text-slate-800">
+                  ชื่อหมวดหมู่
+                </label>
+                <input
+                  id="category-edit-name"
+                  required
+                  value={editName}
+                  onChange={(event) => setEditName(event.target.value)}
+                  className="input"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="category-edit-parent" className="mb-1.5 block text-sm font-semibold text-slate-800">
+                  หมวดหมู่หลัก (Parent Category)
+                </label>
+                <select
+                  id="category-edit-parent"
+                  value={editParentId}
+                  onChange={(event) => setEditParentId(event.target.value ? Number(event.target.value) : "")}
+                  className="select w-full"
+                >
+                  <option value="">ไม่มี (เป็นหมวดหมู่หลัก)</option>
+                  {categories
+                    .filter((cat) => cat.id !== editingCategory.id && !cat.parentId) // Only main level categories can be parents
+                    .map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="category-edit-sort" className="mb-1.5 block text-sm font-semibold text-slate-800">
+                  ลำดับการแสดง
+                </label>
+                <input
+                  id="category-edit-sort"
+                  type="number"
+                  min={0}
+                  value={editSortOrder}
+                  onChange={(event) => setEditSortOrder(Number(event.target.value))}
+                  className="input"
+                />
+              </div>
+
+              {editCategoryError && (
+                <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">
+                  {editCategoryError}
+                </div>
+              )}
+            </div>
+
+            <div className="sticky bottom-0 flex justify-between gap-3 border-t border-slate-200 bg-white px-5 py-4">
+              <Button
+                type="button"
+                variant="danger"
+                disabled={isSavingCategory}
+                onClick={() => void handleDeleteCategory()}
+              >
+                <Trash2 className="h-4 w-4" />
+                ลบหมวดหมู่
+              </Button>
+              <div className="flex gap-2">
+                <Button type="button" variant="ghost" onClick={() => setEditingCategory(null)} disabled={isSavingCategory}>
+                  ยกเลิก
+                </Button>
+                <Button type="submit" disabled={isSavingCategory || !editName.trim()}>
+                  {isSavingCategory ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Settings2 className="h-4 w-4" />}
+                  {isSavingCategory ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
+                </Button>
+              </div>
+            </div>
+          </form>
         </div>
       )}
     </div>

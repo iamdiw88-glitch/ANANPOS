@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { UserRole } from "@prisma/client"
+import { Prisma } from "@prisma/client"
 import { z } from "zod"
 import { auth } from "@/lib/auth"
 import { hasPermission, type Permission } from "@/lib/permissions"
@@ -21,12 +21,6 @@ export async function requireApiSession(allowedRoles?: string[]) {
     throw new ApiError("Unauthorized", 401)
   }
 
-  const sessionRole = session.user.role as UserRole
-
-  if (allowedRoles && !allowedRoles.includes(sessionRole)) {
-    throw new ApiError("Forbidden", 403)
-  }
-
   const sessionUserId = Number(session.user.id)
   const activeUser = Number.isInteger(sessionUserId)
     ? await prisma.user.findFirst({
@@ -35,23 +29,18 @@ export async function requireApiSession(allowedRoles?: string[]) {
       })
     : null
 
-  const fallbackUser = activeUser
-    ? null
-    : await prisma.user.findFirst({
-        where: { role: sessionRole, isActive: true },
-        select: { id: true, role: true },
-        orderBy: { id: "asc" },
-      })
-
-  const user = activeUser || fallbackUser
-  if (!user) {
+  if (!activeUser) {
     throw new ApiError("Unauthorized", 401)
+  }
+
+  if (allowedRoles && !allowedRoles.includes(activeUser.role)) {
+    throw new ApiError("Forbidden", 403)
   }
 
   return {
     session,
-    userId: user.id,
-    role: user.role,
+    userId: activeUser.id,
+    role: activeUser.role,
   }
 }
 
@@ -94,6 +83,18 @@ export function parsePositiveId(value: string | number, label = "ID") {
 export function apiErrorResponse(error: unknown, fallback = "Internal server error") {
   if (error instanceof ApiError) {
     return NextResponse.json({ success: false, error: error.message }, { status: error.status })
+  }
+
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === "P2025") {
+      return NextResponse.json({ success: false, error: "Record not found" }, { status: 404 })
+    }
+    if (error.code === "P2002") {
+      return NextResponse.json({ success: false, error: "A record with this value already exists" }, { status: 409 })
+    }
+    if (error.code === "P2003") {
+      return NextResponse.json({ success: false, error: "This record is still in use" }, { status: 409 })
+    }
   }
 
   console.error(error)

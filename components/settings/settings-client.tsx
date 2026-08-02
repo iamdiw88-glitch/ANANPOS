@@ -1,18 +1,25 @@
 "use client"
 
 import { useState } from "react"
-import { Save, Store, Users, Scale, Database, Plus, Trash2, Edit2, CheckCircle } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Save, Store, Users, Scale, Database, Plus, Trash2, Edit2, CheckCircle, X, LoaderCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input, Select } from "@/components/ui/input"
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { ImageUpload } from "@/components/ui/image-upload"
 
 export function SettingsClient({ initialUsers, initialUnits, initialSettings }: any) {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState("info")
   const [settings, setSettings] = useState(initialSettings)
   const [users, setUsers] = useState(initialUsers)
-  const [units] = useState(initialUnits)
+  const [units, setUnits] = useState(initialUnits)
+  const [isUnitModalOpen, setIsUnitModalOpen] = useState(false)
+  const [editingUnit, setEditingUnit] = useState<any | null>(null)
+  const [isSavingUnit, setIsSavingUnit] = useState(false)
+  const [unitForm, setUnitForm] = useState({ name: "", abbreviation: "" })
   const [isSaving, setIsSaving] = useState(false)
   const [isUserModalOpen, setIsUserModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<any | null>(null)
@@ -38,6 +45,7 @@ export function SettingsClient({ initialUsers, initialUnits, initialSettings }: 
         body: JSON.stringify({ settings })
       })
       if (!res.ok) throw new Error("Failed to save settings")
+      router.refresh()
       alert("บันทึกการตั้งค่าสำเร็จ")
     } catch (e: any) {
       alert("Error: " + e.message)
@@ -112,6 +120,37 @@ export function SettingsClient({ initialUsers, initialUnits, initialSettings }: 
     }
   }
 
+  const saveUnit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!unitForm.name.trim()) return
+    setIsSavingUnit(true)
+    try {
+      const res = await fetch(editingUnit ? `/api/units?id=${editingUnit.id}` : "/api/units", {
+        method: editingUnit ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: unitForm.name.trim(),
+          abbreviation: unitForm.abbreviation.trim() || undefined,
+        }),
+      })
+      const json = await res.json().catch(() => null)
+      if (!res.ok || !json?.success) throw new Error(json?.error || "ไม่สามารถเพิ่มหน่วยนับได้")
+      setUnits((prev: any[]) => {
+        const next = editingUnit
+          ? prev.map((unit) => unit.id === json.data.id ? json.data : unit)
+          : [...prev, json.data]
+        return next.sort((a, b) => a.name.localeCompare(b.name, "th"))
+      })
+      setUnitForm({ name: "", abbreviation: "" })
+      setEditingUnit(null)
+      setIsUnitModalOpen(false)
+    } catch (error: any) {
+      alert(error.message || "ไม่สามารถเพิ่มหน่วยนับได้")
+    } finally {
+      setIsSavingUnit(false)
+    }
+  }
+
   const tabs = [
     { key: "info", label: "ข้อมูลร้าน", icon: Store },
     { key: "users", label: "ผู้ใช้งาน (Users)", icon: Users },
@@ -150,6 +189,13 @@ export function SettingsClient({ initialUsers, initialUnits, initialSettings }: 
               <h2 className="text-base font-bold text-slate-800">ตั้งค่าข้อมูลร้าน (Shop Information)</h2>
             </div>
             <div className="p-4 max-w-2xl space-y-4">
+              <ImageUpload
+                value={settings.logoUrl || ""}
+                onChange={(value) => handleSettingChange("logoUrl", value)}
+                label="โลโก้ร้าน"
+                helpText="แนะนำไฟล์สี่เหลี่ยม JPG, PNG หรือ WebP ขนาดไม่เกิน 10 MB"
+                fit="contain"
+              />
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">ชื่อร้าน / ชื่อบริษัท</label>
                 <Input
@@ -208,7 +254,62 @@ export function SettingsClient({ initialUsers, initialUnits, initialSettings }: 
                 </div>
               </div>
 
-              <div className="pt-2">
+              <div className="mt-4 border-t border-border pt-4">
+                <h3 className="text-sm font-bold text-slate-800 mb-3">การตั้งค่ารหัสบิล (Bill Code Settings)</h3>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">คำนำหน้าบิล (Prefix)</label>
+                    <Input
+                      type="text"
+                      value={settings.billPrefix || "INV"}
+                      onChange={(e) => handleSettingChange("billPrefix", e.target.value)}
+                      placeholder="เช่น INV, RE, BILL"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">ระบบปฏิทิน</label>
+                    <Select
+                      value={settings.billCalendarSystem || "AD"}
+                      onChange={(e) => handleSettingChange("billCalendarSystem", e.target.value)}
+                    >
+                      <option value="AD">คริสต์ศักราช (ค.ศ. / AD)</option>
+                      <option value="BE">พุทธศักราช (พ.ศ. / BE)</option>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">รูปแบบวันเวลา</label>
+                    <Select
+                      value={settings.billDateFormat || "YYMMDD"}
+                      onChange={(e) => handleSettingChange("billDateFormat", e.target.value)}
+                    >
+                      <option value="YYMMDD">YYMMDD (ปี2หลัก เดือน วัน)</option>
+                      <option value="YYYYMMDD">YYYYMMDD (ปี4หลัก เดือน วัน)</option>
+                      <option value="YYMM">YYMM (ปี2หลัก เดือน)</option>
+                    </Select>
+                  </div>
+                </div>
+                {/* Preview of Generated Bill Code */}
+                <p className="mt-2 text-xs text-slate-500 font-semibold bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                  ตัวอย่างรหัสบิลที่จะถูกรัน: <span className="font-bold text-slate-800">
+                    {(() => {
+                      const prefix = settings.billPrefix || "INV"
+                      const calendar = settings.billCalendarSystem || "AD"
+                      const format = settings.billDateFormat || "YYMMDD"
+                      let year = new Date().getFullYear()
+                      if (calendar === "BE") year += 543
+                      const month = String(new Date().getMonth() + 1).padStart(2, "0")
+                      const date = String(new Date().getDate()).padStart(2, "0")
+                      let dateStr = ""
+                      if (format === "YYYYMMDD") dateStr = `${year}${month}${date}`
+                      else if (format === "YYMM") dateStr = `${String(year).slice(-2)}${month}`
+                      else dateStr = `${String(year).slice(-2)}${month}${date}`
+                      return `${prefix}-${dateStr}-0001`
+                    })()}
+                  </span>
+                </p>
+              </div>
+
+              <div className="pt-3">
                 <Button onClick={saveSettings} disabled={isSaving}>
                   <Save className="w-4 h-4" /> {isSaving ? "กำลังบันทึก..." : "บันทึกการตั้งค่า"}
                 </Button>
@@ -271,7 +372,11 @@ export function SettingsClient({ initialUsers, initialUnits, initialSettings }: 
           <div className="p-4 flex flex-col h-full overflow-hidden">
             <div className="flex justify-between items-center mb-3">
               <h2 className="text-base font-bold text-slate-800">จัดการหน่วยนับ (Units)</h2>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => {
+                setEditingUnit(null)
+                setUnitForm({ name: "", abbreviation: "" })
+                setIsUnitModalOpen(true)
+              }}>
                 <Plus className="w-4 h-4" /> เพิ่มหน่วยนับ
               </Button>
             </div>
@@ -291,7 +396,11 @@ export function SettingsClient({ initialUsers, initialUnits, initialSettings }: 
                       <TD className="text-slate-600">{u.abbreviation || "-"}</TD>
                       <TD className="text-center">
                         <div className="flex gap-1 justify-center">
-                          <Button variant="ghost" size="icon" className="text-primary"><Edit2 className="w-4 h-4" /></Button>
+                          <Button variant="ghost" size="icon" className="text-primary" onClick={() => {
+                            setEditingUnit(u)
+                            setUnitForm({ name: u.name, abbreviation: u.abbreviation || "" })
+                            setIsUnitModalOpen(true)
+                          }} aria-label={`แก้ไขหน่วยนับ ${u.name}`}><Edit2 className="w-4 h-4" /></Button>
                         </div>
                       </TD>
                     </TR>
@@ -299,6 +408,37 @@ export function SettingsClient({ initialUsers, initialUnits, initialSettings }: 
                 </TBody>
               </Table>
             </div>
+            {isUnitModalOpen && (
+              <div className="modal-overlay" role="presentation" onMouseDown={(event) => {
+                if (event.target === event.currentTarget && !isSavingUnit) setIsUnitModalOpen(false)
+              }}>
+                <form onSubmit={saveUnit} className="modal max-w-md" role="dialog" aria-modal="true" aria-labelledby="unit-dialog-title">
+                  <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                    <h3 id="unit-dialog-title" className="font-heading text-lg font-extrabold text-slate-900">{editingUnit ? "แก้ไขหน่วยนับ" : "เพิ่มหน่วยนับ"}</h3>
+                    <button type="button" onClick={() => setIsUnitModalOpen(false)} disabled={isSavingUnit} className="cursor-pointer rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed" aria-label="ปิด">
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <div className="space-y-4 p-5">
+                    <div>
+                      <label htmlFor="unit-name" className="mb-1.5 block text-sm font-semibold text-slate-800">ชื่อหน่วยนับ</label>
+                      <Input id="unit-name" autoFocus required value={unitForm.name} onChange={(event) => setUnitForm((prev) => ({ ...prev, name: event.target.value }))} placeholder="เช่น ถุง, กิโลกรัม, แผ่น" />
+                    </div>
+                    <div>
+                      <label htmlFor="unit-abbreviation" className="mb-1.5 block text-sm font-semibold text-slate-800">ตัวย่อ (ถ้ามี)</label>
+                      <Input id="unit-abbreviation" value={unitForm.abbreviation} onChange={(event) => setUnitForm((prev) => ({ ...prev, abbreviation: event.target.value }))} placeholder="เช่น ถ., กก., ผ." maxLength={20} />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
+                    <Button type="button" variant="ghost" onClick={() => setIsUnitModalOpen(false)} disabled={isSavingUnit}>ยกเลิก</Button>
+                    <Button type="submit" disabled={isSavingUnit || !unitForm.name.trim()}>
+                      {isSavingUnit ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                      {isSavingUnit ? "กำลังบันทึก..." : editingUnit ? "บันทึกการแก้ไข" : "บันทึกหน่วยนับ"}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
         )}
 

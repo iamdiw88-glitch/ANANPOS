@@ -274,7 +274,7 @@ export function PaymentDialog({
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Sale failed")
       }
-      onSuccess()
+      onSuccess(data.data?.id || data.sale?.id || data.id)
     } catch (e: any) {
       alert(e.message || "เกิดข้อผิดพลาดในการบันทึกบิล")
     } finally {
@@ -442,6 +442,29 @@ export function PaymentDialog({
               <FileText className="w-6 h-6" />
               <span className="font-heading font-semibold text-sm">ใบกำกับภาษี</span>
             </button>
+          </div>
+
+          <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+            <div className="flex justify-between text-slate-600">
+              <span>รวมสินค้า</span>
+              <span>฿{formatBaht(subtotal)}</span>
+            </div>
+            {discount > 0 && (
+              <div className="mt-1 flex justify-between text-emerald-700">
+                <span>ส่วนลด</span>
+                <span>-฿{formatBaht(discount)}</span>
+              </div>
+            )}
+            {vatAmount > 0 && (
+              <div className="mt-1 flex justify-between text-slate-600">
+                <span>VAT</span>
+                <span>฿{formatBaht(vatAmount)}</span>
+              </div>
+            )}
+            <div className="mt-2 flex justify-between border-t border-slate-200 pt-2 font-heading font-extrabold text-slate-900">
+              <span>ยอดสุทธิ</span>
+              <span className="text-primary">฿{formatBaht(grandTotal)}</span>
+            </div>
           </div>
 
           <div className="border border-border rounded-md p-3 mb-4 space-y-3">

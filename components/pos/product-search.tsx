@@ -52,6 +52,20 @@ export function ProductSearch({
         if (data.success) setResults(data.data)
       } catch {
         if (!controller.signal.aborted) {
+          const getDescendantCategoryIds = (catId: number): number[] => {
+            const ids = [catId]
+            const queue = [catId]
+            while (queue.length > 0) {
+              const current = queue.shift()
+              const children = categories.filter((c: any) => c.parentId === current)
+              for (const child of children) {
+                ids.push(child.id)
+                queue.push(child.id)
+              }
+            }
+            return ids
+          }
+
           const loweredSearch = search.trim().toLocaleLowerCase("th")
           setResults(products.filter((product: any) => {
             const matchesSearch = !loweredSearch ||
@@ -59,7 +73,7 @@ export function ProductSearch({
               product.code.toLocaleLowerCase("th").includes(loweredSearch) ||
               product.searchTags?.toLocaleLowerCase("th").includes(loweredSearch)
             const matchesCategory = typeof activeCategory === "number"
-              ? product.categoryId === activeCategory
+              ? getDescendantCategoryIds(activeCategory).includes(product.categoryId)
               : true
             return matchesSearch && matchesCategory
           }).slice(0, 48))
@@ -75,9 +89,28 @@ export function ProductSearch({
     }
   }, [activeCategory, products, search])
 
+  const getDescendantCategoryIds = (catId: number): number[] => {
+    const ids = [catId]
+    const queue = [catId]
+    while (queue.length > 0) {
+      const current = queue.shift()
+      const children = categories.filter((c: any) => c.parentId === current)
+      for (const child of children) {
+        ids.push(child.id)
+        queue.push(child.id)
+      }
+    }
+    return ids
+  }
+
+  const currentCategoryIds = useMemo(() => {
+    if (typeof activeCategory !== "number") return []
+    return getDescendantCategoryIds(activeCategory)
+  }, [activeCategory, categories])
+
   const visibleResults = results.filter((product: any) => {
     if (product.code === "MISC-001") return false
-    return typeof activeCategory !== "number" || product.categoryId === activeCategory
+    return typeof activeCategory !== "number" || currentCategoryIds.includes(product.categoryId)
   })
   const canCreateCustomItem = search.trim().length > 0
   const isCategoryBrowser = !search.trim() && activeCategory === null
@@ -86,6 +119,22 @@ export function ProductSearch({
     return categories.find((category: any) => category.id === activeCategory)?.name || "สินค้า"
   }, [activeCategory, categories])
   const productCount = products.filter((product: any) => product.code !== "MISC-001").length
+
+  const breadcrumbs = useMemo(() => {
+    if (activeCategory === null || activeCategory === "ALL") return []
+    const crumbs = []
+    let currId: number | null = activeCategory
+    while (currId) {
+      const cat = categories.find((c: any) => c.id === currId)
+      if (cat) {
+        crumbs.unshift(cat)
+        currId = cat.parentId
+      } else {
+        break
+      }
+    }
+    return crumbs
+  }, [activeCategory, categories])
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -149,38 +198,39 @@ export function ProductSearch({
                 </span>
               </button>
 
-              {categories.map((category: any) => (
-                <button
-                  type="button"
-                  key={category.id}
-                  onClick={() => {
-                    setResults(products.filter((product: any) => product.categoryId === category.id))
-                    setActiveCategory(category.id)
-                  }}
-                  className="group relative aspect-[4/3] min-h-32 cursor-pointer overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition-all duration-200 hover:border-primary/60 hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/25"
-                >
-                  {category.imageUrl ? (
-                    <Image
-                      src={category.imageUrl}
-                      alt=""
-                      fill
-                      unoptimized
-                      sizes="(max-width: 768px) 50vw, 25vw"
-                      className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                    />
-                  ) : (
-                    <span className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-100 to-blue-100 text-primary/45">
-                      <ImageIcon className="h-12 w-12" />
+              {categories
+                .filter((cat: any) => !cat.parentId)
+                .map((category: any) => (
+                  <button
+                    type="button"
+                    key={category.id}
+                    onClick={() => {
+                      setActiveCategory(category.id)
+                    }}
+                    className="group relative aspect-[4/3] min-h-32 cursor-pointer overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition-all duration-200 hover:border-primary/60 hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/25"
+                  >
+                    {category.imageUrl ? (
+                      <Image
+                        src={category.imageUrl}
+                        alt=""
+                        fill
+                        unoptimized
+                        sizes="(max-width: 768px) 50vw, 25vw"
+                        className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                      />
+                    ) : (
+                      <span className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-100 to-blue-100 text-primary/45">
+                        <ImageIcon className="h-12 w-12" />
+                      </span>
+                    )}
+                    <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/90 via-slate-950/60 to-transparent p-4 pt-12 text-white">
+                      <span className="block line-clamp-2 font-heading text-base font-extrabold">{category.name}</span>
+                      <span className="mt-0.5 block text-xs font-semibold text-slate-200">
+                        {category._count?.products ?? 0} รายการ
+                      </span>
                     </span>
-                  )}
-                  <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/90 via-slate-950/60 to-transparent p-4 pt-12 text-white">
-                    <span className="block line-clamp-2 font-heading text-base font-extrabold">{category.name}</span>
-                    <span className="mt-0.5 block text-xs font-semibold text-slate-200">
-                      {category._count?.products ?? 0} รายการ
-                    </span>
-                  </span>
-                </button>
-              ))}
+                  </button>
+                ))}
             </div>
 
             {categories.length === 0 && (
@@ -193,25 +243,56 @@ export function ProductSearch({
           </section>
         ) : (
           <section aria-labelledby="product-heading">
-            <div className="mb-4 flex items-center gap-3">
+            {/* POS Breadcrumbs */}
+            <div className="mb-4 flex flex-wrap items-center gap-1.5 text-sm bg-white p-2.5 rounded-lg border border-slate-200 shadow-xs">
               <button
                 type="button"
                 onClick={() => {
                   setSearch("")
                   setActiveCategory(null)
                 }}
-                className="inline-flex h-10 cursor-pointer items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 text-sm font-bold text-slate-700 transition-colors hover:border-primary/40 hover:bg-blue-50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                className="font-bold text-primary hover:underline cursor-pointer"
               >
-                <ChevronLeft className="h-4 w-4" />
-                หมวดหมู่
+                หมวดหมู่ทั้งหมด
               </button>
-              <div className="min-w-0">
-                <h2 id="product-heading" className="truncate font-heading text-lg font-extrabold text-slate-900">
-                  {search.trim() ? `ผลการค้นหา “${search.trim()}”` : activeCategoryName}
-                </h2>
-                <p className="text-xs font-semibold text-slate-500">{visibleResults.length} รายการ</p>
-              </div>
+              {breadcrumbs.map((crumb, idx) => {
+                const isLast = idx === breadcrumbs.length - 1
+                return (
+                  <div key={crumb.id} className="flex items-center gap-1.5">
+                    <span className="text-slate-400 font-medium">/</span>
+                    {isLast ? (
+                      <span className="font-extrabold text-slate-800">{crumb.name}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setActiveCategory(crumb.id)}
+                        className="font-bold text-primary hover:underline cursor-pointer"
+                      >
+                        {crumb.name}
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
             </div>
+
+            {/* Subcategories list as chips in POS */}
+            {activeCategory !== "ALL" && activeCategory !== null && categories.some((c: any) => c.parentId === activeCategory) && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {categories
+                  .filter((c: any) => c.parentId === activeCategory)
+                  .map((subCat: any) => (
+                    <button
+                      key={subCat.id}
+                      type="button"
+                      onClick={() => setActiveCategory(subCat.id)}
+                      className="rounded-lg bg-white border border-slate-200 px-3.5 py-2 text-sm font-extrabold text-slate-850 shadow-xs transition hover:border-primary/50 hover:bg-slate-50 cursor-pointer flex items-center gap-1.5"
+                    >
+                      📁 {subCat.name}
+                    </button>
+                  ))}
+              </div>
+            )}
 
             <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
               {visibleResults.map((product: any) => {

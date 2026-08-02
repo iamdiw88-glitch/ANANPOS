@@ -201,9 +201,17 @@ export async function POST(req: Request) {
       }
 
       const afterDiscount = roundMoney(subtotal - discountAmount)
-      const vatRate = 0
-      const vatAmount = 0
-      const grandTotal = afterDiscount
+      const systemSettings = await tx.setting.findMany({
+        where: { key: { in: ["isVatEnabled", "vatRate", "billPrefix", "billCalendarSystem", "billDateFormat"] } },
+        select: { key: true, value: true },
+      })
+      const settingMap = new Map(systemSettings.map((setting) => [setting.key, setting.value]))
+      const configuredVatRate = Number(settingMap.get("vatRate") || 0)
+      const vatRate = settingMap.get("isVatEnabled") === "true" && Number.isFinite(configuredVatRate)
+        ? Math.max(0, Math.min(configuredVatRate, 100)) / 100
+        : 0
+      const vatAmount = roundMoney(afterDiscount * vatRate)
+      const grandTotal = roundMoney(afterDiscount + vatAmount)
       let paidAmount = 0
       if (isCodDelivery && body.paymentType === "CASH") {
         paidAmount = 0
@@ -227,9 +235,29 @@ export async function POST(req: Request) {
         }
       }
 
-      const todayStr = yymmdd()
-      const billPrefix = `INV-${todayStr}-`
-      await lockDocumentSeries(tx, `sale:${todayStr}`)
+      const calendar = settingMap.get("billCalendarSystem") || "AD"
+      const format = settingMap.get("billDateFormat") || "YYMMDD"
+      const prefixSetting = settingMap.get("billPrefix") || "INV"
+
+      const now = new Date()
+      let year = now.getFullYear()
+      if (calendar === "BE") {
+        year += 543
+      }
+      const monthStr = String(now.getMonth() + 1).padStart(2, "0")
+      const dateStr = String(now.getDate()).padStart(2, "0")
+      
+      let datePart = ""
+      if (format === "YYYYMMDD") {
+        datePart = `${year}${monthStr}${dateStr}`
+      } else if (format === "YYMM") {
+        datePart = `${String(year).slice(-2)}${monthStr}`
+      } else {
+        datePart = `${String(year).slice(-2)}${monthStr}${dateStr}`
+      }
+
+      const billPrefix = `${prefixSetting}-${datePart}-`
+      await lockDocumentSeries(tx, `sale:${datePart}`)
       const lastSale = await tx.sale.findFirst({
         where: { billNo: { startsWith: billPrefix } },
         orderBy: { billNo: "desc" },

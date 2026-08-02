@@ -130,11 +130,14 @@ enum MaintenanceType {
 // === MASTER DATA ===
 
 model Category {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  imageUrl  String?   @db.Text
-  sortOrder Int       @default(0)
-  isActive  Boolean   @default(true)
+  id        Int        @id @default(autoincrement())
+  name      String
+  imageUrl  String?    @db.Text
+  sortOrder Int        @default(0)
+  isActive  Boolean    @default(true)
+  parentId  Int?
+  parent    Category?  @relation("SubCategories", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Category[] @relation("SubCategories")
   products  Product[]
 }
 
@@ -171,10 +174,12 @@ model Product {
   categoryId   Int
   baseUnitId   Int
   reorderPoint Float    @default(0)
-  isStockItem  Boolean  @default(true)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  isStockItem      Boolean  @default(true)
+  isActive         Boolean  @default(true)
+  barcode          String?  @unique
+  barcodeGenerated Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   category       Category        @relation(fields: [categoryId], references: [id])
   baseUnit       Unit            @relation("BaseUnit", fields: [baseUnitId], references: [id])
@@ -263,8 +268,11 @@ model Employee {
   name           String
   nickname       String?
   role           String    @default("STAFF")
+  department     String    @default("SALES_CASHIER")
   position       String?
   employeeType   String    @default("fulltime")
+  payType        String    @default("monthly")
+  payRate        Float     @default(0)
   phone          String?
   idCard         String?
   startDate      DateTime?
@@ -275,13 +283,17 @@ model Employee {
   userId         Int?      @unique
   faceEmbedding  Bytes?
   faceEnrolledAt DateTime?
+  shiftStartTime String?   @default("08:00")
+  shiftEndTime   String?   @default("17:00")
+  lateGraceMin   Int       @default(15)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  user        User?           @relation(fields: [userId], references: [id])
-  attendances AttendanceLog[]
-  deliveries  Delivery[]      @relation("DeliveryDriver")
-  fuelLogs    FuelLog[]
+  user              User?                 @relation(fields: [userId], references: [id])
+  attendances       AttendanceLog[]
+  unrecognizedScans UnrecognizedScanLog[]
+  deliveries        Delivery[]            @relation("DeliveryDriver")
+  fuelLogs          FuelLog[]
 
   @@index([isActive])
   @@index([role])
@@ -298,14 +310,53 @@ model AttendanceLog {
   checkOut     DateTime?
   workMinutes  Int?
   method       AttendanceMethod @default(MANUAL)
+  isLate       Boolean          @default(false)
+  deviceId     String?
   note         String?
   recordedById Int?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
+  device FaceScanDevice? @relation(fields: [deviceId], references: [id])
+
   @@unique([employeeId, date])
   @@index([date])
   @@index([employeeId])
+}
+
+model FaceScanDevice {
+  id         String    @id @default(cuid())
+  name       String
+  location   String?
+  status     String    @default("offline")
+  lastPingAt DateTime?
+  ipAddress  String?
+  apiKey     String?   @unique
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+
+  attendances       AttendanceLog[]
+  unrecognizedScans UnrecognizedScanLog[]
+}
+
+model UnrecognizedScanLog {
+  id                 String    @id @default(cuid())
+  deviceId           String
+  imageUrl           String?
+  confidence         Float?
+  status             String    @default("pending")
+  resolvedEmployeeId Int?
+  resolvedById       Int?
+  resolvedAt         DateTime?
+  note               String?
+  createdAt          DateTime  @default(now())
+
+  device   FaceScanDevice @relation(fields: [deviceId], references: [id])
+  employee Employee?      @relation(fields: [resolvedEmployeeId], references: [id])
+
+  @@index([deviceId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 // === CUSTOMERS ===
@@ -695,4 +746,71 @@ model Setting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+// === DEVICE & PRINTING ===
+
+model Device {
+  id                String          @id @default(cuid())
+  name              String
+  type              String          // "barcode_scanner" | "cash_drawer" | "face_scan_camera" | "receipt_printer" | "delivery_printer" | "other"
+  icon              String          @default("device-desktop")
+  location          String?
+  connectionMethod  String          @default("manual") // "agent_heartbeat" | "activity_proxy" | "linked_device" | "manual"
+  linkedDeviceId    String?
+  linkedDevice      Device?         @relation("DeviceLink", fields: [linkedDeviceId], references: [id])
+  linkedFrom        Device[]        @relation("DeviceLink")
+  ipAddress         String?
+  macAddress        String?
+  usbVendorId       String?
+  usbProductId      String?
+  status            String          @default("unknown")
+  lastSeenAt        DateTime?
+  lastActivityAt    DateTime?
+  offlineThresholdSec Int           @default(90)
+  isActive          Boolean         @default(true)
+  sortOrder         Int             @default(0)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  apiKey            String?         @unique
+
+  printJobs      PrintJob[]
+  printerConfigs PrinterConfig[]
+}
+
+model PrintJob {
+  id           String    @id @default(cuid())
+  type         String    // "receipt" | "delivery_note" | "barcode_label"
+  refId        String
+  deviceId     String?
+  device       Device?   @relation(fields: [deviceId], references: [id])
+  method       String    @default("webusb") // "webusb" | "browser_print"
+  status       String    @default("queued") // "queued" | "printed" | "failed"
+  errorMessage String?
+  printedById  String?
+  printedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([type])
+  @@index([refId])
+  @@index([createdAt])
+}
+
+model PrinterConfig {
+  id              String   @id @default(cuid())
+  documentType    String   @unique // "receipt" | "delivery_note" | "barcode_label"
+  defaultDeviceId String
+  defaultDevice   Device   @relation(fields: [defaultDeviceId], references: [id])
+  usbVendorId     String?
+  usbProductId    String?
+  updatedAt       DateTime @updatedAt
+}
+
+model BarcodeLabelBatch {
+  id            String   @id @default(cuid())
+  productIds    String[]
+  template      String   // "a4_sheet_24" | "a4_sheet_12" | "thermal_roll"
+  copiesPerItem Int      @default(1)
+  printedById   String?
+  createdAt     DateTime @default(now())
 }

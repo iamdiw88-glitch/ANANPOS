@@ -6,7 +6,6 @@ import Link from "next/link"
 import {
   AlertOctagon,
   AlertTriangle,
-  BarChart3,
   CalendarClock,
   CreditCard,
   Package,
@@ -184,7 +183,6 @@ export default async function DashboardPage() {
     { name: "จัดส่ง", icon: Truck, href: "/delivery", allowedRoles: ["OWNER", "CASHIER", "STAFF"] },
     { name: "สต็อก", icon: Package, href: "/inventory", allowedRoles: ["OWNER", "CASHIER", "STAFF"] },
     { name: "คืนสินค้า", icon: RotateCcw, href: "/returns", allowedRoles: ["OWNER", "STAFF"] },
-    { name: "รายงาน", icon: BarChart3, href: "/reports/daily", allowedRoles: ["OWNER", "STAFF"] },
     { name: "รถส่งของ", icon: Truck, href: "/vehicles", allowedRoles: ["OWNER", "STAFF"] },
     { name: "ตั้งค่า", icon: Settings, href: "/settings", allowedRoles: ["OWNER"] },
   ]
@@ -212,12 +210,12 @@ export default async function DashboardPage() {
       </section>
 
       <section className="grid grid-cols-2 xl:grid-cols-6 gap-3">
-        <StatCard label="ยอดขายวันนี้" value={formatBaht(totalSalesToday)} icon={TrendingUp} tone="default" />
-        <StatCard label="เงินสดรับจริง" value={formatBaht(cashReceivedToday)} icon={Wallet} tone="success" />
-        <StatCard label="ขายเชื่อเพิ่ม" value={formatBaht(creditAddedToday)} icon={CreditCard} tone="warning" />
-        <StatCard label="บิลวันนี้" value={`${totalBillsToday} ใบ`} icon={ReceiptText} tone="success" />
-        <StatCard label="รอจัดส่ง" value={`${pendingDeliveries} เที่ยว`} icon={Truck} tone="warning" />
-        <StatCard label="หนี้เกินกำหนด" value={formatBaht(aging.overdue)} icon={AlertOctagon} tone="danger" />
+        <StatCard label="ยอดขายวันนี้" value={formatBaht(totalSalesToday)} icon={<TrendingUp className="h-5 w-5" />} tone="default" />
+        <StatCard label="เงินสดรับจริง" value={formatBaht(cashReceivedToday)} icon={<Wallet className="h-5 w-5" />} tone="success" />
+        <StatCard label="ขายเชื่อเพิ่ม" value={formatBaht(creditAddedToday)} icon={<CreditCard className="h-5 w-5" />} tone="warning" />
+        <StatCard label="บิลวันนี้" value={`${totalBillsToday} ใบ`} icon={<ReceiptText className="h-5 w-5" />} tone="success" />
+        <StatCard label="รอจัดส่ง" value={`${pendingDeliveries} เที่ยว`} icon={<Truck className="h-5 w-5" />} tone="warning" />
+        <StatCard label="หนี้เกินกำหนด" value={formatBaht(aging.overdue)} icon={<AlertOctagon className="h-5 w-5" />} tone="danger" />
       </section>
 
       <section className="grid grid-cols-1 xl:grid-cols-[1.4fr_0.9fr] gap-4">

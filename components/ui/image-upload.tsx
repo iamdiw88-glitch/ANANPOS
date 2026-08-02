@@ -9,6 +9,7 @@ type ImageUploadProps = {
   onChange: (value: string) => void
   label?: string
   helpText?: string
+  fit?: "cover" | "contain"
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024
@@ -71,6 +72,7 @@ export function ImageUpload({
   onChange,
   label = "รูปภาพ",
   helpText = "รองรับ JPG, PNG และ WebP สูงสุด 10 MB ระบบจะย่อรูปให้อัตโนมัติ",
+  fit = "cover",
 }: ImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -140,7 +142,7 @@ export function ImageUpload({
               fill
               unoptimized
               sizes="(max-width: 768px) 100vw, 420px"
-              className="object-cover"
+              className={fit === "contain" ? "bg-white object-contain p-3" : "object-cover"}
             />
             <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-slate-950/70 px-4 py-3 text-sm font-bold text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
               <Upload className="h-4 w-4" />

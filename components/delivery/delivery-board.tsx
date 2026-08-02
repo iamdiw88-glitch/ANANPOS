@@ -10,6 +10,7 @@ import {
   MapPin,
   Package,
   Phone,
+  Printer,
   Save,
   Search,
   Truck,
@@ -672,6 +673,23 @@ function DeliveryDetailPanel({
     .concat(delivery.assignedVehicle ? [delivery.assignedVehicle] : [])
     .filter((vehicle: any, index: number, rows: any[]) => rows.findIndex((item) => item.id === vehicle.id) === index)
 
+  const handlePrintDeliveryNote = async () => {
+    try {
+      const res = await fetch(`/api/print/delivery-note/${delivery.id}`, {
+        method: "POST",
+      })
+      if (!res.ok) {
+        alert("ไม่สามารถสร้าง PDF ใบส่งของได้")
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      window.open(url, "_blank")
+    } catch {
+      alert("เกิดข้อผิดพลาดในการพิมพ์ใบส่งของ")
+    }
+  }
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-start justify-between border-b border-border p-4">
@@ -687,13 +705,19 @@ function DeliveryDetailPanel({
           </h3>
           <p className="font-mono text-xs text-slate-500">{delivery.sale.billNo}</p>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <Button type="button" variant="outline" size="sm" onClick={handlePrintDeliveryNote} title="พิมพ์ใบส่งของ A4">
+            <Printer className="h-4 w-4" />
+            <span className="hidden sm:inline">พิมพ์ใบส่งของ</span>
+          </Button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">

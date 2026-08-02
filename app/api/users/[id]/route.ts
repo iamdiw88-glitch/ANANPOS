@@ -18,6 +18,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const id = parsePositiveId(idParam, "user ID")
     const data = await parseJsonBody(request, updateUserSchema)
 
+    const target = await prisma.user.findUnique({ where: { id }, select: { role: true, isActive: true } })
+    if (!target) throw new ApiError("User not found", 404)
+    if (target.role === "OWNER" && target.isActive && (data.role !== "OWNER" || !data.isActive)) {
+      const otherActiveOwners = await prisma.user.count({ where: { role: "OWNER", isActive: true, id: { not: id } } })
+      if (otherActiveOwners === 0) {
+        throw new ApiError("ต้องมี OWNER ที่ใช้งานได้อย่างน้อย 1 คน", 400)
+      }
+    }
+
     const updateData: {
       name: string
       role: "OWNER" | "STAFF" | "CASHIER"

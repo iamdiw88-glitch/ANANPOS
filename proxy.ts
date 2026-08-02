@@ -5,9 +5,10 @@ import { getRoleHomePath } from "@/lib/role-home"
 export default NextAuth(authConfig).auth((req) => {
   const isLoggedIn = !!req.auth;
   const isApiAuthRoute = req.nextUrl.pathname.startsWith('/api/auth');
+  const isApiRoute = req.nextUrl.pathname.startsWith('/api/');
   const isLoginRoute = req.nextUrl.pathname === '/login';
 
-  if (isApiAuthRoute) return;
+  if (isApiAuthRoute || isApiRoute) return;
 
   if (isLoginRoute) {
     if (isLoggedIn) {

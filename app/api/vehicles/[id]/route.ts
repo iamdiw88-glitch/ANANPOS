@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { apiErrorResponse, parseJsonBody, parsePositiveId, requireApiSession } from "@/lib/api"
@@ -56,7 +56,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireApiSession(["OWNER"])
+    await requireApiSession(["OWNER", "STAFF"])
     const { id } = await params
     const vehicleId = parsePositiveId(id, "vehicle ID")
     const body = await parseJsonBody(req, updateVehicleSchema)
@@ -81,7 +81,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireApiSession(["OWNER"])
+    await requireApiSession(["OWNER", "STAFF"])
     const { id } = await params
     const vehicleId = parsePositiveId(id, "vehicle ID")
     const vehicle = await prisma.vehicle.update({

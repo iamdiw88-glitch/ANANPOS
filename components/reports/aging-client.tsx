@@ -115,19 +115,19 @@ export function AgingReportClient({ customers }: any) {
         <StatCard
           label="ยอดรวมค้างชำระ"
           value={`฿${formatBaht(agingData.totals.totalAll)}`}
-          icon={Wallet}
+          icon={<Wallet className="h-5 w-5" />}
           tone="default"
         />
         <StatCard
           label="ค้าง 31-90 วัน"
           value={`฿${formatBaht(agingData.totals.total31to60 + agingData.totals.total61to90)}`}
-          icon={AlertTriangle}
+          icon={<AlertTriangle className="h-5 w-5" />}
           tone="warning"
         />
         <StatCard
           label="ค้างเกิน 90 วัน"
           value={`฿${formatBaht(agingData.totals.totalOver90)}`}
-          icon={AlertOctagon}
+          icon={<AlertOctagon className="h-5 w-5" />}
           tone="danger"
         />
       </div>

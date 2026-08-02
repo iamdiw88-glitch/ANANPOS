@@ -1,3 +1,5 @@
+@import "../src/styles/tokens.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -204,6 +206,22 @@
   .touch-scroll {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+  }
+  .font-num {
+    font-family: var(--font-num);
+    font-variant-numeric: tabular-nums;
+  }
+  .touch-target-extend {
+    position: relative;
+  }
+  .touch-target-extend::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: var(--tap-min, 48px);
+    min-height: var(--tap-min, 48px);
   }
 }
 

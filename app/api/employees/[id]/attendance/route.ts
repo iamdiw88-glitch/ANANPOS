@@ -1,73 +1,41 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { ApiError, apiErrorResponse, parseJsonBody, parsePositiveId, requireApiSession } from "@/lib/api"
-import { toDateOnly } from "@/lib/hr-fleet"
+import { ApiError, apiErrorResponse, parseJsonBody, parsePositiveId, requireApiPermission } from "@/lib/api"
+import { isCheckInLate } from "@/lib/attendance-utils"
 
-const attendanceSchema = z.object({
-  action: z.enum(["check_in", "check_out"]),
-  note: z.string().trim().nullable().optional(),
-})
+const schema = z.object({ action: z.enum(["check_in", "check_out"]) })
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireApiSession(["OWNER", "STAFF"])
-    const { id } = await params
-    const employeeId = parsePositiveId(id, "employee ID")
-    const month = new URL(req.url).searchParams.get("month")
-    const baseDate = month ? new Date(`${month}-01T00:00:00`) : new Date()
-    const start = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1)
-    const end = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 1)
+    const { userId } = await requireApiPermission("settings:manage")
+    const employeeId = parsePositiveId((await params).id, "employee ID")
+    const { action } = await parseJsonBody(request, schema)
+    const employee = await prisma.employee.findFirst({ where: { id: employeeId, isActive: true } })
+    if (!employee) return NextResponse.json({ success: false, error: "ไม่พบพนักงานที่ใช้งานอยู่" }, { status: 404 })
 
-    const logs = await prisma.attendanceLog.findMany({
-      where: { employeeId, date: { gte: start, lt: end } },
-      orderBy: { date: "desc" },
-    })
-
-    return NextResponse.json(logs)
-  } catch (error) {
-    return apiErrorResponse(error, "Error loading attendance")
-  }
-}
-
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const { userId } = await requireApiSession(["OWNER"])
-    const { id } = await params
-    const employeeId = parsePositiveId(id, "employee ID")
-    const { action, note } = await parseJsonBody(req, attendanceSchema)
     const now = new Date()
-    const today = toDateOnly(now)
+    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const current = await prisma.attendanceLog.findUnique({ where: { employeeId_date: { employeeId, date } } })
 
-    const log = await prisma.$transaction(async (tx) => {
-      const employee = await tx.employee.findUnique({ where: { id: employeeId }, select: { id: true, isActive: true } })
-      if (!employee || !employee.isActive) throw new ApiError("ไม่พบพนักงานที่ใช้งานอยู่", 404)
-
-      const existing = await tx.attendanceLog.findUnique({
-        where: { employeeId_date: { employeeId, date: today } },
+    if (action === "check_in") {
+      if (current?.checkIn) throw new ApiError("พนักงานคนนี้ลงเวลาเข้างานแล้ว", 400)
+      const attendance = await prisma.attendanceLog.upsert({
+        where: { employeeId_date: { employeeId, date } },
+        create: { employeeId, date, checkIn: now, method: "MANUAL", isLate: isCheckInLate(now, employee.shiftStartTime || "08:00", employee.lateGraceMin), recordedById: userId },
+        update: { checkIn: now, method: "MANUAL", isLate: isCheckInLate(now, employee.shiftStartTime || "08:00", employee.lateGraceMin), recordedById: userId },
       })
+      return NextResponse.json({ success: true, data: attendance })
+    }
 
-      if (action === "check_in") {
-        if (existing?.checkIn) throw new ApiError("พนักงานคนนี้เช็คอินวันนี้แล้ว", 409)
-        return tx.attendanceLog.upsert({
-          where: { employeeId_date: { employeeId, date: today } },
-          create: { employeeId, date: today, checkIn: now, note: note || null, recordedById: userId },
-          update: { checkIn: now, note: note || existing?.note || null, recordedById: userId },
-        })
-      }
-
-      if (!existing?.checkIn) throw new ApiError("ยังไม่มีเวลาเข้างานของวันนี้", 400)
-      if (existing.checkOut) throw new ApiError("พนักงานคนนี้เช็คเอาต์วันนี้แล้ว", 409)
-
-      const workMinutes = Math.max(0, Math.round((now.getTime() - existing.checkIn.getTime()) / 60000))
-      return tx.attendanceLog.update({
-        where: { employeeId_date: { employeeId, date: today } },
-        data: { checkOut: now, workMinutes, note: note || existing.note, recordedById: userId },
-      })
+    if (!current?.checkIn) throw new ApiError("ยังไม่มีเวลาเข้างานของพนักงานคนนี้", 400)
+    if (current.checkOut) throw new ApiError("พนักงานคนนี้ลงเวลาออกงานแล้ว", 400)
+    const attendance = await prisma.attendanceLog.update({
+      where: { id: current.id },
+      data: { checkOut: now, workMinutes: Math.max(0, Math.floor((now.getTime() - current.checkIn.getTime()) / 60000)), method: "MANUAL", recordedById: userId },
     })
-
-    return NextResponse.json(log)
+    return NextResponse.json({ success: true, data: attendance })
   } catch (error) {
-    return apiErrorResponse(error, "Error recording attendance")
+    return apiErrorResponse(error, "ไม่สามารถบันทึกเวลาเข้างานได้")
   }
 }

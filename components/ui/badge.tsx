@@ -1,25 +1,71 @@
-import { HTMLAttributes } from "react"
+"use client"
+
+import React, { HTMLAttributes, ReactNode } from "react"
 import { cva, type VariantProps } from "class-variance-authority"
+import {
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  Info,
+  MinusCircle,
+  type LucideIcon,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
-  "inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap",
+  "inline-flex items-center gap-1.5 rounded-full font-semibold whitespace-nowrap transition-colors",
   {
     variants: {
       variant: {
-        success: "bg-emerald-50 text-emerald-700 border border-emerald-200",
-        warning: "bg-amber-50 text-amber-700 border border-amber-200",
-        danger: "bg-red-50 text-red-700 border border-red-200",
-        info: "bg-blue-50 text-blue-700 border border-blue-200",
-        neutral: "bg-slate-100 text-slate-600 border border-slate-200",
+        success: "bg-[#E7F5EE] text-[#0F7A4D] border border-[#0F7A4D]/20",
+        warning: "bg-[#FDF2E3] text-[#A85B00] border border-[#A85B00]/20",
+        danger: "bg-[#FCEDED] text-[#BE2A2A] border border-[#BE2A2A]/20",
+        info: "bg-[#E8F1FD] text-[#0B63CE] border border-[#0B63CE]/20",
+        neutral: "bg-[#F3F5F8] text-[#5D6B80] border border-[#DFE4EC]",
+      },
+      size: {
+        sm: "px-2 py-0.5 text-xs h-6",
+        md: "px-2.5 py-1 text-[13px] h-7",
       },
     },
-    defaultVariants: { variant: "neutral" },
+    defaultVariants: {
+      variant: "neutral",
+      size: "sm",
+    },
   }
 )
 
-export interface BadgeProps extends HTMLAttributes<HTMLSpanElement>, VariantProps<typeof badgeVariants> {}
+const defaultIcons: Record<string, LucideIcon> = {
+  success: CheckCircle2,
+  warning: AlertTriangle,
+  danger: XCircle,
+  info: Info,
+  neutral: MinusCircle,
+}
 
-export function Badge({ className, variant, ...props }: BadgeProps) {
-  return <span className={cn(badgeVariants({ variant }), className)} {...props} />
+export interface BadgeProps
+  extends HTMLAttributes<HTMLSpanElement>,
+    VariantProps<typeof badgeVariants> {
+  icon?: LucideIcon | ReactNode
+}
+
+export function Badge({ className, variant = "neutral", size, icon, children, ...props }: BadgeProps) {
+  const IconComponent = icon || (variant ? defaultIcons[variant] : null)
+
+  const renderIcon = () => {
+    if (!IconComponent) return null
+    if (React.isValidElement(IconComponent)) return IconComponent
+    if (typeof IconComponent === "function" || (typeof IconComponent === "object" && IconComponent !== null)) {
+      const Comp = IconComponent as any
+      return <Comp className="h-3.5 w-3.5 shrink-0" />
+    }
+    return null
+  }
+
+  return (
+    <span className={cn(badgeVariants({ variant, size }), className)} {...props}>
+      {renderIcon()}
+      {children}
+    </span>
+  )
 }

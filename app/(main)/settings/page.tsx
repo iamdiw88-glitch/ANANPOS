@@ -32,7 +32,9 @@ export default async function SettingsPage() {
     taxId: "",
     vatRate: "7",
     billPrefix: "INV",
-    isVatEnabled: "true"
+    isVatEnabled: "true",
+    billCalendarSystem: "AD",
+    billDateFormat: "YYMMDD"
   })
 
   return (

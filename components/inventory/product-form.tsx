@@ -162,7 +162,30 @@ export function ProductForm({ initialData, categories, units }: { initialData?: 
         <div>
           <label className="block text-sm font-medium mb-1">หมวดหมู่</label>
           <select required className="w-full border rounded-md p-2" value={formData.categoryId} onChange={e => setFormData({...formData, categoryId: Number(e.target.value)})}>
-            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {(() => {
+              const getCategoryPathName = (cat: any) => {
+                const path = [cat.name]
+                let parentId = cat.parentId
+                while (parentId) {
+                  const parent = categories.find((c) => c.id === parentId)
+                  if (parent) {
+                    path.unshift(parent.name)
+                    parentId = parent.parentId
+                  } else {
+                    break
+                  }
+                }
+                return path.join(" > ")
+              }
+              const sortedCategories = [...categories].sort((a, b) => {
+                return getCategoryPathName(a).localeCompare(getCategoryPathName(b), "th")
+              })
+              return sortedCategories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {getCategoryPathName(c)}
+                </option>
+              ))
+            })()}
           </select>
         </div>
         <div>

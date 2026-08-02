@@ -53,7 +53,7 @@ export default async function VehiclesPage() {
   return (
     <div className="space-y-5">
       <PageHeader title="รถและเครื่องจักร" description="จัดการรถส่งของ รถยก โฟคลิฟท์ รถตัก และสต็อกน้ำมันดีเซล" />
-      <VehiclesClient initialVehicles={vehiclesWithAlerts} initialDrivers={employees} initialDieselStock={dieselStock} />
+      <VehiclesClient initialVehicles={vehiclesWithAlerts} initialDrivers={employees} initialDieselStock={dieselStock} canManageVehicles={["OWNER", "STAFF"].includes(role)} />
     </div>
   )
 }

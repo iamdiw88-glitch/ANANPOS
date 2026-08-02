@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { apiErrorResponse } from "@/lib/api"
+import { apiErrorResponse, requireApiSession } from "@/lib/api"
 
 export async function GET() {
   try {
+    await requireApiSession()
     const drivers = await prisma.employee.findMany({
       where: {
         isActive: true,

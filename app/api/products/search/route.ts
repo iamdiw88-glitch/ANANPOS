@@ -10,11 +10,28 @@ export async function GET(request: Request) {
     const query = searchParams.get("q")?.trim()
     const categoryId = Number(searchParams.get("categoryId"))
     const limit = Math.min(Math.max(Number(searchParams.get("limit")) || 48, 1), 100)
+    let categoryIds: number[] = []
+    if (Number.isInteger(categoryId) && categoryId > 0) {
+      categoryIds = [categoryId]
+      const allCategories = await prisma.category.findMany({
+        where: { isActive: true },
+        select: { id: true, parentId: true },
+      })
+      const queue = [categoryId]
+      while (queue.length > 0) {
+        const current = queue.shift()
+        const children = allCategories.filter((c) => c.parentId === current)
+        for (const child of children) {
+          categoryIds.push(child.id)
+          queue.push(child.id)
+        }
+      }
+    }
 
     const products = await prisma.product.findMany({
       where: {
         isActive: true,
-        ...(Number.isInteger(categoryId) && categoryId > 0 ? { categoryId } : {}),
+        ...(categoryIds.length > 0 ? { categoryId: { in: categoryIds } } : {}),
         ...(query
           ? {
               OR: [

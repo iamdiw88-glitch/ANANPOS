@@ -1,19 +1,52 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { FolderPlus, LoaderCircle, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ImageUpload } from "@/components/ui/image-upload"
 
-export function CategoryCreateButton({ className = "" }: { className?: string }) {
+interface CategoryCreateButtonProps {
+  className?: string
+  categories?: any[]
+  defaultParentId?: number | null
+}
+
+export function CategoryCreateButton({ className = "", categories, defaultParentId = null }: CategoryCreateButtonProps) {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [name, setName] = useState("")
   const [sortOrder, setSortOrder] = useState(0)
   const [imageUrl, setImageUrl] = useState("")
+  const [parentId, setParentId] = useState<number | "">(defaultParentId ?? "")
   const [error, setError] = useState("")
+  const [categoriesList, setCategoriesList] = useState<any[]>(categories || [])
+
+  useEffect(() => {
+    if (categories) {
+      setCategoriesList(categories)
+    }
+  }, [categories])
+
+  useEffect(() => {
+    if (isOpen && !categories) {
+      fetch("/api/categories")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            setCategoriesList(data.data)
+          }
+        })
+        .catch(console.error)
+    }
+  }, [isOpen, categories])
+
+  useEffect(() => {
+    if (isOpen) {
+      setParentId(defaultParentId ?? "")
+    }
+  }, [isOpen, defaultParentId])
 
   const close = () => {
     if (isSaving) return
@@ -30,7 +63,12 @@ export function CategoryCreateButton({ className = "" }: { className?: string })
       const response = await fetch("/api/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, sortOrder, imageUrl: imageUrl || null }),
+        body: JSON.stringify({
+          name,
+          sortOrder,
+          imageUrl: imageUrl || null,
+          parentId: parentId || null,
+        }),
       })
       const data = await response.json()
       if (!response.ok || !data.success) {
@@ -41,6 +79,7 @@ export function CategoryCreateButton({ className = "" }: { className?: string })
       setName("")
       setSortOrder(0)
       setImageUrl("")
+      setParentId(defaultParentId ?? "")
       setIsOpen(false)
       router.refresh()
     } catch {
@@ -106,6 +145,27 @@ export function CategoryCreateButton({ className = "" }: { className?: string })
                   placeholder="เช่น ปูนซีเมนต์, เครื่องมือช่าง"
                   className="input"
                 />
+              </div>
+
+              <div>
+                <label htmlFor="category-parent" className="mb-1.5 block text-sm font-semibold text-slate-800">
+                  หมวดหมู่หลัก (Parent Category)
+                </label>
+                <select
+                  id="category-parent"
+                  value={parentId}
+                  onChange={(event) => setParentId(event.target.value ? Number(event.target.value) : "")}
+                  className="select w-full"
+                >
+                  <option value="">ไม่มี (เป็นหมวดหมู่หลัก)</option>
+                  {categoriesList
+                    .filter((cat) => !cat.parentId) // Only display main level as parents for simplicity, or all non-self categories
+                    .map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                </select>
               </div>
 
               <div>

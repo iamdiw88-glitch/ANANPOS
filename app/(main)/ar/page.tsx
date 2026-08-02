@@ -90,19 +90,19 @@ export default async function ARPage() {
         <StatCard
           label="ยอดลูกหนี้รวม"
           value={`฿${totalAR.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`}
-          icon={Wallet}
+          icon={<Wallet className="h-5 w-5" />}
           tone="default"
         />
         <StatCard
           label="ค้าง 31-60 วัน"
           value={`฿${overdue30.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`}
-          icon={AlertTriangle}
+          icon={<AlertTriangle className="h-5 w-5" />}
           tone="warning"
         />
         <StatCard
           label="ค้างเกิน 60 วัน"
           value={`฿${overdue60.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`}
-          icon={AlertOctagon}
+          icon={<AlertOctagon className="h-5 w-5" />}
           tone="danger"
         />
       </div>
